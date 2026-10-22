@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#191b19">
+  <meta name="description" content="Run the wastes. A handcrafted pixel-art arcade shooter set among desert dunes and neon machinery.">
+  <title>DUSTBYTE — Run the Wastes</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23191b19' d='M0 0h32v32H0z'/%3E%3Cpath fill='%23d7f66b' d='M7 7h13v4h5v10h-5v4H7zm5 5v8h7v-8z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css?v=2">
+  <script src="art.js?v=2" defer></script>
+  <script src="game.js?v=2" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="DUSTBYTE home"><span class="mark">D<span>//</span>B</span><span>DUSTBYTE<span class="edition">16-BIT EDITION</span></span></a>
+    <div class="head-note"><span class="status-dot"></span> A SMALL GAME. A HOSTILE WORLD.</div>
+    <span class="build">VOL. 02 <span>↗</span></span>
+  </header>
+  <main>
+    <div class="stage-heading"><span><b>01</b> THE SALT WASTES</span><div class="stage-actions"><button id="sound" title="Toggle sound (M)" aria-label="Enable sound" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-4v14l-4-4H3zM14 7l4 6m0-6-4 6"/></svg><span>SOUND OFF</span></button><button id="pause" title="Pause game (Esc)" aria-label="Pause game"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4v12M13 4v12"/></svg><span>PAUSE</span></button><button id="fullscreen" title="Fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>EXPAND</span></button></div></div>
+    <section class="game-shell" id="game-shell" aria-label="DUSTBYTE arcade game">
+      <div class="screen" id="screen">
+        <canvas id="game" width="1280" height="720" tabindex="0" aria-label="Side-scrolling shooter. Move with A and D, jump with Space, fire with J, and throw a grenade with K."></canvas>
+        <div class="scanlines" aria-hidden="true"></div>
+        <div id="intro" class="intro overlay">
+          <div class="eyebrow"><span></span> DESERT PUNK / RUN & GUN</div>
+          <h1 aria-label="Dustbyte"><svg id="title-art" viewBox="0 0 244 88" role="img" aria-label="DUSTBYTE"></svg></h1>
+          <p>The dunes have teeth.<br>So do you.</p>
+          <button id="start" class="primary"><span>ENTER THE WASTES</span><span class="button-arrow">↗</span></button>
+          <div class="start-hint">PRESS ENTER TO DEPLOY <span>•</span> 1 PLAYER</div>
+        </div>
+        <div id="modal" class="modal overlay" hidden>
+          <div class="modal-content"><div class="eyebrow" id="modal-eyebrow">TRANSMISSION PAUSED</div><h2 id="modal-title">Take a breath.</h2><p id="modal-copy">The wastes can wait.</p><button id="resume" class="primary">BACK TO THE WASTES <span>↗</span></button><button id="restart" class="text-button">RESTART MISSION</button></div>
+        </div>
+        <div class="intro-bottom" id="intro-bottom"><span>SECTOR 07 / EXTRACTION ZONE</span><span>NO SIGNAL. NO BACKUP.</span></div>
+        <div id="live-region" class="sr-only" role="status" aria-live="polite"></div>
+      </div>
+      <div class="expanded-tools"><button id="expanded-pause" aria-label="Pause or resume">Ⅱ</button><button id="exit-expanded" aria-label="Exit expanded view">✕</button></div>
+      <div class="touch-controls" id="touch-controls" aria-label="Touch game controls"><div class="touch-move"><button data-control="left" aria-label="Move left">◀</button><button data-control="right" aria-label="Move right">▶</button></div><div class="touch-action"><button data-control="grenade" class="grenade" aria-label="Throw grenade"><span>✦</span><small>GRENADE</small></button><button data-control="jump" aria-label="Jump"><span>↑</span><small>JUMP</small></button><button data-control="fire" class="fire" aria-label="Fire weapon"><span>◎</span><small>FIRE</small></button></div></div>
+    </section>
+    <section class="briefing"><div class="mission"><div class="label">THE ASSIGNMENT</div><p>Break the machine.<br><span>Take back the wastes.</span></p><div class="mission-description">Push through the outpost. Shut down the extraction mech. Try to keep all your limbs.</div></div><div class="field-guide"><div class="guide-top"><span class="label">FIELD MANUAL</span><span class="guide-note">HOLD FIRE. KEEP MOVING.</span></div><div class="keys"><div><span class="key-pair"><kbd>A</kbd><kbd>D</kbd></span><span>MOVE</span></div><div><kbd class="wide">SPACE</kbd><span>JUMP × 2</span></div><div><kbd>J</kbd><span>FIRE</span></div><div><kbd>K</kbd><span>GRENADE</span></div><div><kbd class="wide">SHIFT</kbd><span>DASH</span></div></div><p class="touch-guide">Hold <b>FIRE</b> to shoot. Tap <b>JUMP</b> twice to double jump. Double-tap an arrow to dash.<br><span>Turn your phone sideways for a wider view.</span></p><p class="alternate">Arrow keys also move & jump. <span>Esc to pause.</span> Pick up <b>+</b> medkits and <b>H</b> heavy rounds.</p></div></section>
+  </main>
+  <footer><span>BUILT FOR THE LAST QUARTER IN YOUR POCKET.</span><span>DESERT STEEL <i></i> PURE PIXELS</span></footer>
+</body>
+</html>
