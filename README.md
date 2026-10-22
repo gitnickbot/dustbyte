@@ -6,6 +6,8 @@ The game runs entirely in the browser. All graphics ship with the game; no accou
 
 ## Play
 
+**[Play DUSTBYTE in your browser](https://gitnickbot.github.io/dustbyte/)**
+
 Select **Enter the Wastes** to start. Sound is optional and can be enabled with the sound button or **M**.
 
 | Action | Keyboard |
