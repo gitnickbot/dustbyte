@@ -74,8 +74,8 @@ function resolveCityMotion(px,py){
  const height=playerHeight(),width=playerWidth();
  // Resolve side walls against the previous vertical span, then sweep floor / ceiling crossings.
  for(const p of citySolids){if(py<=p.y+.01||py-height>=p.y+p.h-.01)continue;
-  if(player.x>px&&px+width<=p.x+.01&&player.x+width>p.x)player.x=p.x-width;
-  if(player.x<px&&px-width>=p.x+p.w-.01&&player.x-width<p.x+p.w)player.x=p.x+p.w+width;
+  if(player.x>px&&px<p.x&&player.x+width>p.x)player.x=p.x-width;
+  if(player.x<px&&px>p.x+p.w&&player.x-width<p.x+p.w)player.x=p.x+p.w+width;
  }
  let floor=Infinity,ceiling=-Infinity;
  for(const p of citySolids){if(player.x+8<=p.x||player.x-8>=p.x+p.w)continue;
