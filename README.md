@@ -1,49 +1,13 @@
-# DUSTBYTE — Run the Wastes
+# Dead Moon Syndicate
 
-A small desert-punk run-and-gun game with detailed 16-bit-style sprites, double jumps, grenades, and an extraction-mech boss. The Nomad Edition features burnt-orange dunes, a buried starship, layered sandstone, and a hooded scavenger with a compact rifle and worn field gear.
+A browser-based pixel-art run-and-gun. Play at https://gitnickbot.github.io/dustbyte/
 
-The game runs entirely in the browser. All graphics ship with the game; no account, API key, backend, or build step is required.
+Press Start, select a route, then Confirm. Both routes are available immediately:
+- Glass Dunes: Nomad, desert wreck field, extraction mech.
+- Black Rain Citadel: Street Rogue, rainy neon city, raised walkways and Citadel Warden.
 
-## Play
+The four locked destinations are future content, not playable levels. Cleared routes are remembered locally in the browser. No account required.
 
-**[Play DUSTBYTE in your browser](https://gitnickbot.github.io/dustbyte/)**
+A/D or arrow keys: move. Space: double jump. J: fire. K: grenade. Shift: dash. Esc: pause. M: sound. Touch controls are included. Return to the sector map from the pause or victory screen.
 
-Select **Enter the Wastes** to start. Sound is optional and can be enabled with the sound button or **M**.
-
-| Action | Keyboard |
-| --- | --- |
-| Move | A / D or left / right arrows |
-| Jump / double jump | Space, W, or up arrow |
-| Fire | J or Z |
-| Grenade | K or X |
-| Dash | Shift |
-| Pause | Escape |
-| Toggle sound | M |
-
-On a phone, use the on-screen controls. Double-tap a movement arrow to dash. Landscape orientation gives a wider view.
-
-## Run locally
-
-Serve this directory with any static web server. For example, with Python installed:
-
-```sh
-python3 -m http.server 8000
-```
-
-Open `http://localhost:8000` in your browser.
-
-## GitHub Pages
-
-In the repository's **Settings → Pages**, choose **Deploy from a branch**, then **main** and **/ (root)**. Save and wait for the deployment to finish. GitHub will show the public play URL there.
-
-The `.nojekyll` file enables plain static hosting. All game assets use relative paths, so the game also works under a project subdirectory.
-
-## Files
-
-- `index.html` — game page and controls
-- `style.css` — layout and presentation
-- `game.js` — gameplay, rendering, input, and audio
-- `art.js` — sprite loading and frame definitions
-- `assets/` — bundled environment and sprite artwork
-
-High scores are stored only in the player's browser.
+Run with any static HTTP server. No build step or external dependencies. Assets load from assets/.

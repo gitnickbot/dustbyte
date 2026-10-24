@@ -4,42 +4,50 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1d1713">
-  <meta name="description" content="Run the wastes. A detailed pixel-art run-and-gun game. Play the Nomad across burnt-orange dunes, buried starships, and hostile machines.">
-  <title>DUSTBYTE — Run the Wastes</title>
+  <meta name="description" content="Two playable paths in a pixel-art run-and-gun. Explore Glass Dunes as the Nomad or Black Rain Citadel as the Street Rogue.">
+  <title>DEAD MOON SYNDICATE — Choose Your Path</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231d1713' d='M0 0h32v32H0z'/%3E%3Cpath fill='%23f3b166' d='M7 7h13v4h5v10h-5v4H7zm5 5v8h7v-8z'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=4-run">
-  <script src="art.js?v=4-run" defer></script>
-  <script src="game.js?v=4-run" defer></script>
+  <link rel="stylesheet" href="style.css?v=5-city">
+  <script src="art.js?v=5-city" defer></script>
+  <script src="game.js?v=5-city" defer></script>
 </head>
-<body>
+<body data-mode="menu">
   <header class="masthead">
-    <a class="wordmark" href="./" aria-label="DUSTBYTE home"><span class="mark">D<span>//</span>B</span><span>DUSTBYTE<span class="edition">NOMAD EDITION</span></span></a>
+    <a class="wordmark" href="./" aria-label="DEAD MOON SYNDICATE home"><span class="mark">D<span>//</span>M</span><span>DEAD MOON SYNDICATE<span class="edition">TWO WORLDS / ONE SYNDICATE</span></span></a>
     <div class="head-note"><span class="status-dot"></span> A SMALL GAME. A HOSTILE WORLD.</div>
-    <span class="build">VOL. 03 <span>↗</span></span>
+    <span class="build">VOL. 04 <span>↗</span></span>
   </header>
   <main>
-    <div class="stage-heading"><span><b>01</b> THE SHIP GRAVEYARD</span><div class="stage-actions"><button id="sound" title="Toggle sound (M)" aria-label="Enable sound" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-4v14l-4-4H3zM14 7l4 6m0-6-4 6"/></svg><span>SOUND OFF</span></button><button id="pause" title="Pause game (Esc)" aria-label="Pause game"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4v12M13 4v12"/></svg><span>PAUSE</span></button><button id="fullscreen" title="Fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>EXPAND</span></button></div></div>
-    <section class="game-shell" id="game-shell" aria-label="DUSTBYTE arcade game">
+    <div class="stage-heading"><span id="stage-name">CHOOSE YOUR PATH</span><div class="stage-actions"><button id="sound" title="Toggle sound (M)" aria-label="Enable sound" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-4v14l-4-4H3zM14 7l4 6m0-6-4 6"/></svg><span>SOUND OFF</span></button><button id="pause" title="Pause game (Esc)" aria-label="Pause game"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4v12M13 4v12"/></svg><span>PAUSE</span></button><button id="fullscreen" title="Fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>EXPAND</span></button></div></div>
+    <section class="game-shell" id="game-shell" aria-label="DEAD MOON SYNDICATE arcade game">
       <div class="screen" id="screen">
         <canvas id="game" width="1280" height="720" tabindex="0" aria-label="Side-scrolling shooter. Move with A and D, jump with Space, fire with J, and throw a grenade with K."></canvas>
         <div class="scanlines" aria-hidden="true"></div>
-        <div id="intro" class="intro overlay">
-          <div class="eyebrow"><span></span> DESERT PUNK / RUN & GUN</div>
-          <h1 aria-label="Dustbyte"><svg id="title-art" viewBox="0 0 244 88" role="img" aria-label="DUSTBYTE"></svg></h1>
-          <p>The dunes have teeth.<br>So do you.</p>
-          <button id="start" class="primary"><span>ENTER THE WASTES</span><span class="button-arrow">↗</span></button>
-          <div class="start-hint">PRESS ENTER TO DEPLOY <span>•</span> 1 PLAYER</div>
+        <div id="intro" class="art-screen overlay">
+          <img src="assets/title-dead-moon.jpg" alt="Dead Moon Syndicate. A cracked moon over desert ruins and a neon city, with the Nomad and Street Rogue." fetchpriority="high">
+          <button id="start" class="art-hit start-hit" aria-label="Start game"><span class="sr-only">START GAME</span></button>
+          <button id="options" class="art-hit options-hit" aria-label="Options"><span class="sr-only">OPTIONS</span></button>
+          <div id="load-status" role="status">LOADING ASSETS…</div>
         </div>
+        <div id="sector-map" class="art-screen overlay" hidden>
+          <img src="assets/sector-map.jpg" alt="Sector navigation tablet. Routes lead from the Glass Dunes to Black Rain Citadel and four locked future sectors.">
+          <button id="route-dunes" class="art-hit route dunes selected" aria-pressed="true" aria-label="Select Glass Dunes, play as Nomad"><span class="route-badge" id="dunes-badge">NOMAD</span></button>
+          <button id="route-city" class="art-hit route city" aria-pressed="false" aria-label="Select Black Rain Citadel, play as Street Rogue"><span class="route-badge" id="city-badge">STREET ROGUE</span></button>
+          <button id="deploy" class="art-hit confirm-hit" aria-label="Deploy to selected sector"><span class="sr-only">CONFIRM</span></button>
+          <button id="map-back" class="art-hit back-hit" aria-label="Return to title"><span class="sr-only">BACK</span></button>
+          <div class="map-instructions" id="route-status" role="status">GLASS DUNES · NOMAD · SELECT A ROUTE, THEN CONFIRM</div>
+        </div>
+        <div id="options-panel" class="modal overlay" hidden><div class="modal-content"><div class="eyebrow">DEAD MOON SYNDICATE</div><h2>Field settings</h2><p>A / D to move · Space to double jump<br>J to fire · K for grenade · Shift to dash<br>Esc to pause · M to toggle sound<br>On the map: ← / → to choose, Enter to deploy.<br>Four locked sectors are future destinations.</p><button id="option-sound" class="primary">SOUND: OFF</button><button id="options-back" class="text-button">BACK TO TITLE</button></div></div>
         <div id="modal" class="modal overlay" hidden>
-          <div class="modal-content"><div class="eyebrow" id="modal-eyebrow">TRANSMISSION PAUSED</div><h2 id="modal-title">Take a breath.</h2><p id="modal-copy">The wastes can wait.</p><button id="resume" class="primary">BACK TO THE WASTES <span>↗</span></button><button id="restart" class="text-button">RESTART MISSION</button></div>
+          <div class="modal-content"><div class="eyebrow" id="modal-eyebrow">TRANSMISSION PAUSED</div><h2 id="modal-title">Take a breath.</h2><p id="modal-copy">The wastes can wait.</p><button id="resume" class="primary">BACK TO THE WASTES <span>↗</span></button><button id="return-map" class="text-button">SECTOR MAP</button><button id="restart" class="text-button">RESTART MISSION</button></div>
         </div>
-        <div class="intro-bottom" id="intro-bottom"><span>SECTOR 07 / EXTRACTION ZONE</span><span>NO SIGNAL. NO BACKUP.</span></div>
+        <div class="intro-bottom" id="intro-bottom" hidden><span>SECTOR 07 / EXTRACTION ZONE</span><span>NO SIGNAL. NO BACKUP.</span></div>
         <div id="live-region" class="sr-only" role="status" aria-live="polite"></div>
       </div>
       <div class="expanded-tools"><button id="expanded-pause" aria-label="Pause or resume">Ⅱ</button><button id="exit-expanded" aria-label="Exit expanded view">✕</button></div>
       <div class="touch-controls" id="touch-controls" aria-label="Touch game controls"><div class="touch-move"><button data-control="left" aria-label="Move left">◀</button><button data-control="right" aria-label="Move right">▶</button></div><div class="touch-action"><button data-control="grenade" class="grenade" aria-label="Throw grenade"><span>✦</span><small>GRENADE</small></button><button data-control="jump" aria-label="Jump"><span>↑</span><small>JUMP</small></button><button data-control="fire" class="fire" aria-label="Fire weapon"><span>◎</span><small>FIRE</small></button></div></div>
     </section>
-    <section class="briefing"><div class="mission"><div class="label">THE ASSIGNMENT</div><p>Break the machine.<br><span>Take back the wastes.</span></p><div class="mission-description">Cross the wreck field. Shut down the extraction mech. Try to keep all your limbs.</div></div><div class="field-guide"><div class="guide-top"><span class="label">FIELD MANUAL</span><span class="guide-note">HOLD FIRE. KEEP MOVING.</span></div><div class="keys"><div><span class="key-pair"><kbd>A</kbd><kbd>D</kbd></span><span>MOVE</span></div><div><kbd class="wide">SPACE</kbd><span>JUMP × 2</span></div><div><kbd>J</kbd><span>FIRE</span></div><div><kbd>K</kbd><span>GRENADE</span></div><div><kbd class="wide">SHIFT</kbd><span>DASH</span></div></div><p class="touch-guide">Hold <b>FIRE</b> to shoot. Tap <b>JUMP</b> twice to double jump. Double-tap an arrow to dash.<br><span>Turn your phone sideways for a wider view.</span></p><p class="alternate">Arrow keys also move & jump. <span>Esc to pause.</span> Pick up <b>+</b> medkits and <b>H</b> heavy rounds.</p></div></section>
+    <section class="briefing"><div class="mission"><div class="label">THE ASSIGNMENT</div><p id="mission-title">Break the machine.<br><span>Take back the wastes.</span></p><div class="mission-description">Choose your first route on the sector map. Clear both missions as the Nomad and Street Rogue.</div></div><div class="field-guide"><div class="guide-top"><span class="label">FIELD MANUAL</span><span class="guide-note">HOLD FIRE. KEEP MOVING.</span></div><div class="keys"><div><span class="key-pair"><kbd>A</kbd><kbd>D</kbd></span><span>MOVE</span></div><div><kbd class="wide">SPACE</kbd><span>JUMP × 2</span></div><div><kbd>J</kbd><span>FIRE</span></div><div><kbd>K</kbd><span>GRENADE</span></div><div><kbd class="wide">SHIFT</kbd><span>DASH</span></div></div><p class="touch-guide">Hold <b>FIRE</b> to shoot. Tap <b>JUMP</b> twice to double jump. Double-tap an arrow to dash.<br><span>Turn your phone sideways for a wider view.</span></p><p class="alternate">Arrow keys also move & jump. <span>Esc to pause.</span> Pick up <b>+</b> medkits and <b>H</b> heavy rounds.</p></div></section>
   </main>
   <footer><span>BUILT FOR THE LAST QUARTER IN YOUR POCKET.</span><span>SAND & SALVAGE <i></i> PURE PIXELS</span></footer>
 </body>
