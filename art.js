@@ -1,10 +1,11 @@
 /* DUSTBYTE: original 16-bit-style game art. Assets are local and require no third-party requests. */
 window.DustbyteArt = (()=>{
   const assets={},frames={};let loaded=false,failed=false;
-  const sources={directions:'hero-directions.png',facades:'city-facades.png',gunship:'warden-gunship.png',rogueActions:'rogue-actions.png',city:'citadel-city.png',rogue:'rogue-run.png',wastes:'nomad-wastes.png',terrain:'nomad-terrain.png',hero:'nomad-hero.png',run:'nomad-run-approved.png',enemies:'enemies-16bit.png',boss:'extractor-16bit.png'};
+  const sources={nomadArmorRun:'nomad-armor-run.png',nomadArmorActions:'nomad-armor-actions.png',rogueArmorRun:'rogue-armor-run.png',rogueArmorActions:'rogue-armor-actions.png',directions:'hero-directions.png',facades:'city-facades.png',gunship:'warden-gunship.png',rogueActions:'rogue-actions.png',city:'citadel-city.png',rogue:'rogue-run.png',wastes:'nomad-wastes.png',terrain:'nomad-terrain.png',hero:'nomad-hero.png',run:'nomad-run-approved.png',enemies:'enemies-16bit.png',boss:'extractor-16bit.png'};
   function load(name,file){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{assets[name]=im;resolve();};im.onerror=()=>reject(new Error('Could not load '+file));im.src='assets/'+file;});}
   function frame(im,bounds,anchor){const c=document.createElement('canvas');c.width=Math.floor(bounds[2]);c.height=Math.floor(bounds[3]);const x=c.getContext('2d');x.drawImage(im,...bounds,0,0,c.width,c.height);const a=x.getImageData(0,0,c.width,c.height).data;let l=c.width,r=0,t=c.height,b=0;for(let yy=0;yy<c.height;yy++)for(let xx=0;xx<c.width;xx++)if(a[(yy*c.width+xx)*4+3]>80){l=Math.min(l,xx);r=Math.max(r,xx);t=Math.min(t,yy);b=Math.max(b,yy);}if(r<l)return null;return {image:im,x:bounds[0]+l,y:bounds[1]+t,w:r-l+1,h:b-t+1,anchor:anchor===undefined?(r-l+1)/2:anchor-(bounds[0]+l)};}
   const ready=Promise.all(Object.entries(sources).map(([k,v])=>load(k,v))).then(()=>{
+    frames.armor=[window.DeadMoonArmor.build(assets.nomadArmorRun,assets.nomadArmorActions),window.DeadMoonArmor.build(assets.rogueArmorRun,assets.rogueArmorActions)];
     const hi=assets.hero,hs=hi.width/1774,vs=hi.height/887;
     // Atlas gutters follow the actual artwork, so the jump rifle and dash scarf never leak between frames.
     const hb=[[0,0,444,444,235],[444,0,440,444,690],[884,0,440,444,1110],[1324,0,450,444,1585],[0,444,450,443,225],[450,444,440,443,675],[890,444,416,443,1105],[1306,444,468,443,1540]];
