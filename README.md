@@ -4,7 +4,7 @@ A browser-based pixel-art run-and-gun. Play at https://gitnickbot.github.io/dust
 
 Press Start, select a route, then Confirm. Both routes are available immediately:
 - Glass Dunes: Nomad, desert wreck field, extraction mech.
-- Black Rain Citadel: Street Rogue, rainy neon city, raised walkways and Citadel Warden.
+- Black Rain Citadel: Street Rogue, dense multilevel city: service street, rooftops, lower maintenance works, skybridge and flying Warden gunship. Near buildings, parallax towers, foreground columns and overhangs give the route depth. Solid roofs block movement and bullets; double-jump up the ledges.
 
 The four locked destinations are future content, not playable levels. Cleared routes are remembered locally in the browser. No account required.
 
