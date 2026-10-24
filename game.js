@@ -54,9 +54,9 @@ function burst(x,y,n,color,force=75){if(n>=18)effects.push({x,y,age:0,duration:n
 function damage(n){if(player.inv>0||player.dash>0||state!=='playing')return;player.hp-=n;player.inv=1.3;flash=.15;shake=5;sfx('hit');burst(player.x,player.y-17,9,'#e77c63');announce(`Armor ${Math.max(0,player.hp)} of 6`);if(player.hp<=0)gameOver();}
 function enemyHit(e,n){if(e.hp<=0)return;e.hp-=n;e.flash=.09;burst(e.x,e.y-(e.type==='drone'?0:25),4,'#d4b086',50);if(e.hp<=0){score+=e.type==='turret'?250:e.type==='drone'?150:100;kills++;burst(e.x,e.y-12,18,'#e7a467');sfx('hit');message('+'+(e.type==='turret'?250:e.type==='drone'?150:100),e.x,e.y-35,.7,'#efe3b8');if(kills%6===0)pickups.push({x:e.x,y:GROUND-13,type:'health',phase:0});}}
 function bossHit(n){if(!boss||boss.hp<=0)return;boss.hp-=n;boss.flash=.06;burst(boss.x-28,boss.y-58,4,ACID,60);if(boss.hp<=0){boss.hp=0;boss.dead=true;winTimer=2.6;score+=3000;kills++;hostiles=[];hazards=[];player.inv=5;shake=12;sfx('boom');burst(boss.x,boss.y-50,100,'#f7ba70',140);message('EXTRACTOR DESTROYED',boss.x-140,100,2.4,ACID);}}
-const HERO_MUZZLES=[[24,38],[20,38],[19,35],[24,37],[24,37],[25,38],[23,28],[29,26]];
-function heroPose(anim,firing,air,dashing){return dashing?7:air?6:anim?([1,2,3,4][Math.floor(anim*.85)%4]):firing?5:0;}
-function playerMuzzle(){const m=HERO_MUZZLES[heroPose(player.vx?player.anim:0,true,!player.onGround,player.dash>0)];return {x:player.x+player.face*m[0],y:player.y-m[1]};}
+const HERO_MUZZLES=[[24,38],[20,38],[19,35],[24,37],[24,37],[25,38],[23,28],[29,26],...Array.from({length:8},()=>[26,37])];
+function heroPose(anim,firing,air,dashing){return dashing?7:air?6:anim?8+Math.floor(anim)%8:firing?5:0;}
+function playerMuzzle(){const m=HERO_MUZZLES[heroPose(player.vx?player.anim+.000001:0,true,!player.onGround,player.dash>0)];return {x:player.x+player.face*m[0],y:player.y-m[1]};}
 function fire(){const muzzle=playerMuzzle(),heavy=player.heavy>0;if(player.cool>0)return;player.cool=heavy?.105:.135;const targets=enemies.filter(e=>e.hp>0&&(e.x-player.x)*player.face>0&&Math.abs(e.x-player.x)<240&&Math.abs((e.y-(e.type==='drone'?0:25))-muzzle.y)<78);
  targets.sort((a,b)=>Math.abs(a.x-player.x)-Math.abs(b.x-player.x));let aim=0;if(targets.length){const e=targets[0];aim=Math.atan2(e.y-(e.type==='drone'?0:25)-muzzle.y,Math.abs(e.x-player.x));}else if(boss&&!boss.dead&&Math.abs(boss.x-player.x)<360&&(boss.x-player.x)*player.face>0){aim=Math.atan2(boss.y-88-muzzle.y,Math.abs(boss.x-player.x));}else{const crate=crates.filter(c=>c.hp>0&&(c.x-player.x)*player.face>0&&Math.abs(c.x-player.x)<240&&Math.abs(c.y-18-muzzle.y)<55).sort((a,b)=>Math.abs(a.x-player.x)-Math.abs(b.x-player.x))[0];if(crate)aim=Math.atan2(crate.y-18-muzzle.y,Math.abs(crate.x-muzzle.x));}
  for(let i=0;i<(heavy?3:1);i++){const a=aim+(heavy?(i-1)*.10:0);shots.push({x:muzzle.x,y:muzzle.y,vx:Math.cos(a)*400*player.face,vy:Math.sin(a)*400,life:.95,heavy,dmg:heavy?3:3});}
@@ -76,7 +76,7 @@ function update(dt){clock+=dt;
  const prevY=player.y;player.x+=player.vx*dt;player.vy+=610*dt;player.y+=player.vy*dt;player.onGround=false;player.coyote=Math.max(0,player.coyote-dt);
  if(player.y>=GROUND){player.y=GROUND;player.vy=0;player.onGround=true;player.jumps=0;player.coyote=.1;}
  for(const p of platforms)if(player.x>p.x-5&&player.x<p.x+p.w+5&&prevY<=p.y+1&&player.y>=p.y&&player.vy>=0){player.y=p.y;player.vy=0;player.onGround=true;player.jumps=0;player.coyote=.1;}
- player.x=Math.max(bossTriggered?3550:18,Math.min(LENGTH-28,player.x));player.anim+=dt*(move?13:3);
+ player.x=Math.max(bossTriggered?3550:18,Math.min(LENGTH-28,player.x));if(move&&player.onGround&&player.dash===0)player.anim=(player.anim+Math.abs(player.vx)*dt/10)%8;else if(!move)player.anim=0;
  if(move&&player.onGround&&Math.random()<.24)particles.push({x:player.x-move*6,y:player.y-1,vx:-move*20,vy:-rand()*16,life:.35,size:2,color:'#d49a57',gravity:20});
  if(player.x>2100&&!usedCheckpoint){checkpoint=2100;usedCheckpoint=true;player.hp=6;player.grenades=Math.max(4,player.grenades);message('RELAY SECURED / ARMOR RESTORED',2260,122,3,ACID);sfx('pickup');announce('Checkpoint reached. Armor restored.');}
  if(player.x>3590&&!bossTriggered){bossTriggered=true;boss={x:4005,y:GROUND,hp:230,maxHp:230,t:0,cycle:0,cool:2,flash:0,dead:false,slam:0};message('WARNING / EXTRACTOR ONLINE',3860,105,2.4,'#f2ad77');announce('Boss encounter. Destroy the extraction mech.');}
@@ -149,7 +149,7 @@ function foregroundWorld(){
 function person(x,y,face,anim,enemy=false,firing=false,air=false,dashing=false){
  if(!art||!art.loaded)return;
  const index=enemy?(firing?3:anim?([1,0,2,0][Math.floor(anim*1.6)%4]):0):heroPose(anim,firing,air,dashing);
- const f=enemy?art.frames.enemies[index]:art.frames.hero[index];
+ const f=enemy?art.frames.enemies[index]:index>=8?art.frames.run[index-8]:art.frames.hero[index];
  const height=enemy?49:53;
  if(!air)shadow(x,y,enemy?15:17);
  const bob=!anim&&!firing?Math.sin(clock*3)*.45:0;
@@ -198,7 +198,7 @@ function draw(){
   for(const p of pickups)if(Math.abs(p.x-cam-W/2)<370)drawPickup(p);
   for(const e of enemies)if(e.x-cam>-45&&e.x-cam<W+45){if(e.type==='drone')drone(e);else if(e.type==='turret')turret(e);else{person(e.x-cam,e.y,e.face,e.t*5,true,e.cool>2.22);if(e.alert>.12)text('!',e.x-cam-2,e.y-46,1,'#efbc87');}}
   if(boss)drawBoss(boss);
-  if(player&&(player.inv===0||Math.floor(player.inv*13)%2===0)&&state!=='dead')person(player.x-cam,player.y,player.face,player.vx?player.anim:0,false,player.cool>.09&&down('fire'),!player.onGround,player.dash>0);
+  if(player&&(player.inv===0||Math.floor(player.inv*13)%2===0)&&state!=='dead')person(player.x-cam,player.y,player.face,player.vx?player.anim+.000001:0,false,player.cool>.09&&down('fire'),!player.onGround,player.dash>0);
   for(const b of shots){rect(b.x-cam-Math.sign(b.vx)*7,b.y-1,9,3,b.heavy?ACID:'#ffeeb8');rect(b.x-cam-Math.sign(b.vx)*12,b.y,6,1,b.heavy?'#d39551':'#dcad71');}
   for(const b of hostiles){circle(b.x-cam,b.y,b.r+2,'#ed936935');circle(b.x-cam,b.y,b.r,'#ecac7d');rect(b.x-cam-1,b.y-1,2,2,'#fff0b9');}
   for(const n of grenades){rect(n.x-cam-3,n.y-3,6,6,'#8b7860');rect(n.x-cam-1,n.y-5,2,2,'#d6c1a2');if(Math.floor(clock*15)%2)rect(n.x-cam,n.y-2,2,2,'#ef9869');}
