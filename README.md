@@ -1,6 +1,6 @@
 # DUSTBYTE — Run the Wastes
 
-A small desert-punk run-and-gun game with detailed 16-bit-style sprites, neon machinery, double jumps, grenades, and an extraction-mech boss.
+A small desert-punk run-and-gun game with detailed 16-bit-style sprites, double jumps, grenades, and an extraction-mech boss. The Nomad Edition features burnt-orange dunes, a buried starship, layered sandstone, and a hooded scavenger with a compact rifle and worn field gear.
 
 The game runs entirely in the browser. All graphics ship with the game; no account, API key, backend, or build step is required.
 
