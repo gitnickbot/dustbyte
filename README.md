@@ -4,7 +4,9 @@ A browser-based pixel-art run-and-gun. Play at https://gitnickbot.github.io/dust
 
 Press Start, select a route, then Confirm. Both routes are available immediately:
 - Glass Dunes: Nomad, desert wreck field, extraction mech.
-- Black Rain Citadel: Street Rogue, dense multilevel city: service street, rooftops, lower maintenance works, skybridge and flying Warden gunship. Near buildings, parallax towers, foreground columns and overhangs give the route depth. Solid roofs block movement and bullets; double-jump up the ledges.
+- Zenith Prime: Street Rogue, three connected stages. Stage 1 keeps the dense service streets, maintenance works and skybridge. Defeating the Warden sends it crashing through the sealed wall. Stage 2 climbs fourteen staggered platforms through a guarded tower, with an armor relay and a destructible security gate. Stage 3 opens onto a panoramic rooftop: jump over warned flying traffic, then fight the Orb Sentinel's rotating three-arm spirals and three timed radial bursts.
+
+Each new Zenith Prime stage starts a checkpoint. Death retries that stage with full armor; a long fall during the ascent returns you to your highest landed platform and costs one hit. Only defeating the final rooftop boss marks the city cleared. Glass Dunes remains its existing single-stage route in this update.
 
 The four locked destinations are future content, not playable levels. Cleared routes are remembered locally in the browser. No account required.
 

@@ -36,3 +36,15 @@ Generation prompt set (built-in image tool, transparent background):
 - Targeted corrections: replace only incorrect top-row hoods with the matching sealed helmet; preserve other equipment and poses. Final background extraction requests fully transparent empty regions and holes between limbs without changing artwork.
 
 Validation: all 128 frames extracted; visual review of both heroes' idle, aiming and crawl states. Seven-hit damage sequence, plate fragments, repair boundaries, full-repair cap, checkpoint/retry restoration, dash and hit invulnerability are covered by the armor QA script. Existing eight-way shot angles, movement, crouch/crawl collisions, city traversal and flying-boss hits also pass.
+
+
+## Zenith Prime expansion
+
+The city retains its established stage-one environment and Street Rogue armor sprites. The tower ascent adds close facade walls, lit platform edges, numbered ledges, structural braces and a full-height security shutter. The rooftop removes near-building occluders and most rain to reveal a broad skyline.
+
+New assets generated with builtin ImageGen:
+- `zenith-skyline.png`: ultrawide detailed 16-bit pixel city panorama seen from high rooftops; blue and violet night sky, atmospheric towers, luminous cyan/magenta windows, distant cracked moon; open sky, no foreground buildings or floor, no UI or text.
+- `zenith-car.png`: isolated side-profile antigravity sports car facing left; teal/gunmetal body, violet cockpit, cyan thrusters; detailed pixel clusters, transparent background, no cast shadow or labels.
+- `zenith-orb.png`: isolated spherical police drone in side-on arcade view, ivory and gunmetal shell, red central lens, six radial gun ports, blue/red patrol lights; detailed 16-bit pixel art, transparent background, no text or effects baked into the attacks.
+
+The orb's charge rings, spiraling cyan projectiles and timed pink radial volleys are rendered separately. The car sprite is mirrored to match traffic direction. Tower and rooftop gameplay geometry lives in `zenith.js`; no debug stage selectors ship in the game.

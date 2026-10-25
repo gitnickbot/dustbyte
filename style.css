@@ -62,3 +62,5 @@ body:not([data-mode="playing"]) .game-shell.expanded .screen,body:not([data-mode
 }
 
 body.touch-enabled[data-mode="playing"] .touch-controls{display:flex;}
+
+.city-route-name{position:absolute;left:3%;right:3%;top:2%;height:18%;display:flex;align-items:center;justify-content:center;background:#071326;color:#d9f8ff;text-shadow:2px 2px #39547a;font:bold clamp(9px,2.2vw,28px) monospace;letter-spacing:2px;pointer-events:none}
