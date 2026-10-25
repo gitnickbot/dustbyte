@@ -1,7 +1,7 @@
 /* DUSTBYTE: original 16-bit-style game art. Assets are local and require no third-party requests. */
 window.DustbyteArt = (()=>{
   const assets={},frames={};let loaded=false,failed=false;
-  const sources={skyline:"zenith-skyline.png",orb:"zenith-orb.png",car:"zenith-car.png",nomadArmorRun:'nomad-armor-run.png',nomadArmorActions:'nomad-armor-actions.png',rogueArmorRun:'rogue-armor-run.png',rogueArmorActions:'rogue-armor-actions.png',directions:'hero-directions.png',facades:'city-facades.png',gunship:'warden-gunship.png',rogueActions:'rogue-actions.png',city:'citadel-city.png',rogue:'rogue-run.png',wastes:'nomad-wastes.png',terrain:'nomad-terrain.png',hero:'nomad-hero.png',run:'nomad-run-approved.png',enemies:'enemies-16bit.png',boss:'extractor-16bit.png'};
+  const sources={overlook:"dunes-overlook.png",dunesCave:"dunes-cave.png",rocks:"dunes-rocks.png",beetles:"dunes-beetles.png",skyline:"zenith-skyline.png",orb:"zenith-orb.png",car:"zenith-car.png",nomadArmorRun:'nomad-armor-run.png',nomadArmorActions:'nomad-armor-actions.png',rogueArmorRun:'rogue-armor-run.png',rogueArmorActions:'rogue-armor-actions.png',directions:'hero-directions.png',facades:'city-facades.png',gunship:'warden-gunship.png',rogueActions:'rogue-actions.png',city:'citadel-city.png',rogue:'rogue-run.png',wastes:'nomad-wastes.png',terrain:'nomad-terrain.png',hero:'nomad-hero.png',run:'nomad-run-approved.png',enemies:'enemies-16bit.png',boss:'extractor-16bit.png'};
   function load(name,file){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{assets[name]=im;resolve();};im.onerror=()=>reject(new Error('Could not load '+file));im.src='assets/'+file;});}
   function frame(im,bounds,anchor){const c=document.createElement('canvas');c.width=Math.floor(bounds[2]);c.height=Math.floor(bounds[3]);const x=c.getContext('2d');x.drawImage(im,...bounds,0,0,c.width,c.height);const a=x.getImageData(0,0,c.width,c.height).data;let l=c.width,r=0,t=c.height,b=0;for(let yy=0;yy<c.height;yy++)for(let xx=0;xx<c.width;xx++)if(a[(yy*c.width+xx)*4+3]>80){l=Math.min(l,xx);r=Math.max(r,xx);t=Math.min(t,yy);b=Math.max(b,yy);}if(r<l)return null;return {image:im,x:bounds[0]+l,y:bounds[1]+t,w:r-l+1,h:b-t+1,anchor:anchor===undefined?(r-l+1)/2:anchor-(bounds[0]+l)};}
   const ready=Promise.all(Object.entries(sources).map(([k,v])=>load(k,v))).then(()=>{
@@ -40,6 +40,8 @@ window.DustbyteArt = (()=>{
     const ei=assets.enemies,es=ei.width/1774,ev=ei.height/887;
     const eb=[[0,0,450,443,207],[450,0,450,443,690],[900,0,445,443,1140],[1345,0,429,443,1545],[0,443,450,444],[450,443,450,444],[900,443,445,444],[1345,443,429,444]];
     frames.enemies=eb.map(b=>frame(ei,[b[0]*es,b[1]*ev,b[2]*es,b[3]*ev],b[4]===undefined?undefined:b[4]*es));
+    const ri=assets.rocks;frames.rocks=[[0,0,530,887],[535,0,660,887],[1195,0,579,887]].map(b=>frame(ri,b.map((v,i)=>v*(i%2?ri.height/887:ri.width/1774))));
+    const bi=assets.beetles;frames.beetles=[[0,0,768,420],[768,0,768,420],[0,420,768,604],[768,420,768,604]].map(b=>frame(bi,b.map((v,i)=>v*(i%2?bi.height/1024:bi.width/1536))));
     frames.orb=frame(assets.orb,[0,0,assets.orb.width,assets.orb.height]);
     frames.car=frame(assets.car,[0,0,assets.car.width,assets.car.height]);
     frames.gunship=frame(assets.gunship,[0,0,assets.gunship.width,assets.gunship.height]);

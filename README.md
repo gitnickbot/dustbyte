@@ -3,10 +3,10 @@
 A browser-based pixel-art run-and-gun. Play at https://gitnickbot.github.io/dustbyte/
 
 Press Start, select a route, then Confirm. Both routes are available immediately:
-- Glass Dunes: Nomad, desert wreck field, extraction mech.
+- Glass Dunes: Nomad, three connected stages. Stage 1 retains the wreck field and extraction walker. Defeating it opens Fangridge Ascent: an angled dune climb with nine jagged rock ledges, layered parallax formations and the Sandhollow cave full of crawling sand bugs. Exit into the panoramic Sunsea Overlook, jump warned flying beetles, and fight the giant Dune Sovereign.
 - Zenith Prime: Street Rogue, three connected stages. Stage 1 keeps the dense service streets, maintenance works and skybridge. Defeating the Warden sends it crashing through the sealed wall. Stage 2 climbs fourteen staggered platforms through a guarded tower, with an armor relay and a destructible security gate. Stage 3 opens onto a panoramic rooftop: jump over warned flying traffic, then fight the Orb Sentinel's rotating three-arm spirals and three timed radial bursts.
 
-Each new Zenith Prime stage starts a checkpoint. Death retries that stage with full armor; a long fall during the ascent returns you to your highest landed platform and costs one hit. Only defeating the final rooftop boss marks the city cleared. Glass Dunes remains its existing single-stage route in this update.
+Each new Zenith Prime stage starts a checkpoint. Death retries that stage with full armor; a long fall during the ascent returns you to your highest landed platform and costs one hit. Only defeating the final rooftop boss marks the city cleared. Glass Dunes also checkpoints at the ascent, inside the cave (with an armor refill), and at the overlook. Its giant beetle boss cycles through burrowing, a 1.5-second fixed sand-plume warning, eruption, repeated flight passes with an opening shell, and diving underground again. The closed shell blocks all damage; aim for the glowing exposed body during open-shell flight. Duck to shoot low crawling sand bugs.
 
 The four locked destinations are future content, not playable levels. Cleared routes are remembered locally in the browser. No account required.
 

@@ -48,3 +48,14 @@ New assets generated with builtin ImageGen:
 - `zenith-orb.png`: isolated spherical police drone in side-on arcade view, ivory and gunmetal shell, red central lens, six radial gun ports, blue/red patrol lights; detailed 16-bit pixel art, transparent background, no text or effects baked into the attacks.
 
 The orb's charge rings, spiraling cyan projectiles and timed pink radial volleys are rendered separately. The car sprite is mirrored to match traffic direction. Tower and rooftop gameplay geometry lives in `zenith.js`; no debug stage selectors ship in the game.
+
+
+## Glass Dunes three-stage expansion
+
+Stage one and all approved Nomad armor animation assets remain intact. Builtin ImageGen produced four new project assets in `assets/`: `dunes-overlook.png`, `dunes-cave.png`, `dunes-rocks.png`, and `dunes-beetles.png`.
+
+Prompt set: a 3:1 high alien desert overlook with immense copper sand seas, atmospheric jagged spires, starship ruins, orange sunset and dusty planet; a 3:1 recessed sandstone cave wall in umber/plum with amber fissures; three isolated jagged sandstone formations on transparency for ledges, parallax and close occluders; a four-pose transparent bronze scarab atlas containing crawler, flyer, closed armored giant, and the same giant with opened wing cases and luminous exposed body. All use richly shaded 16-bit pixel clusters. The beetle atlas received a targeted alpha cleanup preserving poses and positions.
+
+Ground texture is sampled in narrow strips to follow the actual continuous dune slope. Walkable rock tops match their collision ledges. Foreground spires fade near the hero, and the overlook drops the close rock layers to reveal the view. Cave ceiling rock teeth use inverted textured spires. Beetle warning plumes and exposed-core cue are rendered independently.
+
+Validation covers the walker-to-ascent transition, slope following, every rock ledge, cave checkpoint and bug hitboxes, roof collision, flying beetle avoidance, locked eruption warning, eruption damage, closed-shell damage rejection, flight vulnerability, and final-only route completion. Existing city, armor and eight-way control checks pass.
