@@ -254,7 +254,7 @@ function drawBeetle(b){
  if(b.phase==='burrow'||b.phase==='warning'){const x=b.targetX-cam,y=D.summitY,warning=b.phase==='warning';for(let i=0;i<8;i++){const spread=warning?45:20,xx=x+(hash(i+2)-.5)*spread,hh=(warning?16:5)+Math.sin(clock*9+i)*5;poly([[xx-7,y],[xx-3,y-hh],[xx+2,y-hh-4],[xx+8,y]],i%2?'#e8b16c':'#ae6c3d');}if(warning)text('SAND ERUPTION',x,y-40,1,'#ffe6a6','center');return;}
  const open=b.vulnerable,f=art.frames.beetles[open?3:2],width=220,height=width*f.h/f.w;
  g.save();g.beginPath();g.rect(0,camY,W,D.summitY-camY+2);g.clip();if(b.flash>0)g.filter='brightness(1.8)';art.sprite(g,f,b.x-cam,b.y,height,-b.face);g.restore();
- if(open){const x=b.x-cam+b.face*-20,y=b.y-54;g.strokeStyle='#ffe39a';g.lineWidth=1;g.beginPath();g.arc(x,y,18+Math.sin(clock*12)*2,0,Math.PI*2);g.stroke();text('CORE EXPOSED',b.x-cam,b.y-height-14,1,'#ffe5a8','center');}
+ if(open){const x=b.x-cam+b.face*-20,y=b.y-84;g.strokeStyle='#ffe39a';g.lineWidth=1;g.beginPath();g.arc(x,y,18+Math.sin(clock*12)*2,0,Math.PI*2);g.stroke();text('CORE EXPOSED',b.x-cam,b.y-height-14,1,'#ffe5a8','center');}
 }
 function desertRock(f,x,y,height,face=1,alpha=1){art.sprite(g,art.frames.rocks[f%3],x,y,height,face,alpha);}
 function dunesBackground(){
