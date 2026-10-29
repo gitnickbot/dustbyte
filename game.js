@@ -28,10 +28,11 @@ function circle(x,y,r,c){g.fillStyle=c;for(let yy=-r;yy<=r;yy++){const xx=Math.f
 let state='menu',clock=0,elapsed=0,cam=0,shake=0,flash=0,score=0,kills=0,checkpoint=0,usedCheckpoint=false,best=0,bossTriggered=false,winTimer=0;
 try{best=Number(localStorage.getItem('dustbyte-best')||0);}catch(e){}
 let player,enemies=[],shots=[],hostiles=[],particles=[],grenades=[],pickups=[],crates=[],hazards=[],texts=[],boss=null;
-const held=new Set(),pressed=new Set(),touch=new Set();
+const held=new Set(),pressed=new Set(),touch=new Set(),padHeld=new Set();
+const controller={index:null,previous:new Set(),needsNeutral:false,suspended:false};
 const binds={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'jump',KeyJ:'fire',KeyZ:'fire',KeyK:'grenade',KeyX:'grenade',ShiftLeft:'dash',ShiftRight:'dash'};
 const stick={x:0,y:0,pointer:null},actionPointers=[];
-const down=k=>held.has(k)||touch.has(k)||(k==='left'&&stick.x<0)||(k==='right'&&stick.x>0)||(k==='up'&&stick.y<0)||(k==='down'&&stick.y>0),tap=k=>pressed.has(k);
+const down=k=>held.has(k)||touch.has(k)||padHeld.has(k)||(k==='left'&&stick.x<0)||(k==='right'&&stick.x>0)||(k==='up'&&stick.y<0)||(k==='down'&&stick.y>0),tap=k=>pressed.has(k);
 function playerHeight(){return player?.crawling?20:player?.crouching?29:43;}
 function playerWidth(){return player?.crawling?17:9;}
 function canStand(){return !isCity()||!cityGeometry().some(p=>player.x+9>p.x&&player.x-9<p.x+p.w&&player.y>p.y+.01&&player.y-43<p.y+p.h-.01);}
@@ -54,7 +55,7 @@ function armorStatus(){return armor.status(player?.hp??armor.maxHP);}
 function armorSet(){return art?.loaded?art.frames.armor[isCity()?1:0][armorStatus().row]:null;}
 function directionalFrame(){const set=armorSet(),pose=directionalPose();return set&&pose>=0?set.actions[[1,2,3,4,5,6,7,6][pose]]:null;}
 function armorFrame(anim=player.vx?player.anim+.000001:0,air=!player.onGround,dashing=player.dash>0){const set=armorSet();return set?(anim||air||dashing?set.run[air||dashing?3:Math.floor(anim)%8]:set.actions[0]):null;}
-function resetInputs(){held.clear();pressed.clear();touch.clear();if(typeof physicalKeys!=='undefined')physicalKeys.clear();stick.x=stick.y=0;stick.pointer=null;actionPointers.forEach(p=>p.clear());renderStick();document.querySelectorAll('[data-control]').forEach(b=>b.classList.remove('active'));}
+function resetInputs(){padHeld.clear();controller.needsNeutral=true;held.clear();pressed.clear();touch.clear();if(typeof physicalKeys!=='undefined')physicalKeys.clear();stick.x=stick.y=0;stick.pointer=null;actionPointers.forEach(p=>p.clear());renderStick();document.querySelectorAll('[data-control]').forEach(b=>b.classList.remove('active'));}
 
 const dunesPlatforms=[{x:450,y:250,w:88},{x:620,y:207,w:88},{x:1030,y:250,w:135},{x:1340,y:222,w:92},{x:1660,y:255,w:120},{x:1900,y:210,w:90},{x:2320,y:252,w:130},{x:2560,y:217,w:100},{x:2870,y:249,w:100},{x:3160,y:231,w:120},{x:3660,y:244,w:84}];
 // A continuous but vertically varied city route. Solid roofs have real side/underside collisions.
@@ -587,6 +588,50 @@ function draw(){
  if(state!=='menu'&&player){drawHUD();for(const t of texts){g.globalAlpha=Math.min(1,t.life*2);text(t.str,t.x-cam,Math.max(bossTriggered?100:64,t.y-camY),1,t.color,'center');g.globalAlpha=1;}if(flash>0)rect(0,0,W,H,'#ed956b33');}
  else{rect(0,0,W,2,'#d5c89650');if(best>0)text('BEST '+String(best).padStart(6,'0'),W-19,17,1,'#e1d8ac','right');}
 }
+// Standard browser gamepad mapping: Xbox, plus other standard-mapped controllers.
+function controllerStatus(message){const el=$('controller-status');if(el)el.textContent=message;}
+function pollController(){
+ let pads=[];try{if(typeof navigator!=='undefined'&&navigator.getGamepads)pads=Array.from(navigator.getGamepads()||[]);}catch(e){}
+ const supported=p=>p&&p.connected!==false&&p.mapping==='standard';
+ let pad=pads.find(p=>supported(p)&&p.index===controller.index);
+ if(controller.index!==null&&!pad){
+  padHeld.clear();controller.index=null;controller.previous.clear();controller.needsNeutral=true;
+  if(state==='playing')pauseGame();
+  controllerStatus('Controller disconnected. Reconnect and press Menu or A to resume.');return;
+ }
+ if(!pad)pad=pads.find(supported);
+ if(!pad){padHeld.clear();return;}
+ if(controller.index===null){controller.index=pad.index;controllerStatus('Controller connected · A confirm · B back · Menu pause');}
+ const button=i=>!!pad.buttons[i]&&(pad.buttons[i].pressed||pad.buttons[i].value>.5);
+ const current=new Set();
+ let dx=0,dy=0;
+ const ax=Number(pad.axes[0])||0,ay=Number(pad.axes[1])||0;
+ if(Math.hypot(ax,ay)>.28){const a=Math.round(Math.atan2(ay,ax)/(Math.PI/4))*Math.PI/4;dx=Math.round(Math.cos(a));dy=Math.round(Math.sin(a));}
+ if([12,13,14,15].some(button)){dx=Number(button(15))-Number(button(14));dy=Number(button(13))-Number(button(12));}
+ if(dx<0)current.add('left');if(dx>0)current.add('right');if(dy<0)current.add('up');if(dy>0)current.add('down');
+ for(const [action,buttons] of [['jump',[0]],['fire',[2,7]],['grenade',[1]],['dash',[3,5]],['pause',[9]]])if(buttons.some(button))current.add(action);
+ const previous=controller.previous;controller.previous=current;
+ padHeld.clear();
+ if(controller.suspended||document.hidden){controller.needsNeutral=true;return;}
+ if(controller.needsNeutral){if(!current.size)controller.needsNeutral=false;return;}
+ // Edges use the previous poll, not the snapshot we just stored.
+ const fresh=k=>current.has(k)&&!previous.has(k);
+ if(state==='playing'){
+  if(fresh('pause')){pauseGame();return;}
+  for(const k of current)if(k!=='pause'){padHeld.add(k);if(fresh(k))pressed.add(k);}
+ }else if(state==='menu'){if(fresh('jump')||fresh('pause')){if(!art||art.loaded)showMap();}}
+ else if(state==='map'){
+  if(fresh('left'))chooseRoute('dunes');if(fresh('right'))chooseRoute('city');
+  if(fresh('grenade'))showTitle();else if(fresh('jump')||fresh('pause'))deploy();
+ }else if(state==='paused'){
+  if(fresh('jump')||fresh('pause')){resetInputs();pauseGame();}else if(fresh('grenade'))showMap();
+ }else if(state==='dead'){if(fresh('jump')||fresh('pause'))retry();else if(fresh('grenade'))showMap();}
+ else if(state==='won'){if(fresh('jump')||fresh('pause')||fresh('grenade'))showMap();}
+ else if(state==='options'){if(fresh('grenade')||fresh('pause'))showTitle();else if(fresh('jump'))toggleSound();}
+}
+window.addEventListener('focus',()=>{controller.suspended=false;controller.needsNeutral=true;});
+window.addEventListener('blur',()=>{controller.suspended=true;padHeld.clear();});
+
 // Keyboard, eight-way stick and multi-touch actions share one input map.
 const physicalKeys=new Set();
 window.addEventListener('keydown',e=>{if(state==='map'){if(['ArrowLeft','KeyA','ArrowRight','KeyD'].includes(e.code)){e.preventDefault();chooseRoute(['ArrowLeft','KeyA'].includes(e.code)?'dunes':'city');return;}if(e.code==='Escape'){e.preventDefault();showTitle();return;}}if(state==='options'&&e.code==='Escape'){showTitle();return;}if(e.target.closest('button')&&['Space','Enter'].includes(e.code))return;if(binds[e.code]){e.preventDefault();const action=binds[e.code];physicalKeys.add(e.code);if(!held.has(action))pressed.add(action);held.add(action);}if(e.repeat)return;if(e.code==='Enter'){if(state==='menu')showMap();else if(state==='map')deploy();else if(state==='dead')retry();else if(state==='won')showMap();else if(state==='paused')pauseGame();}if(e.code==='Escape'||e.code==='KeyP'){e.preventDefault();pauseGame();}if(e.code==='KeyM')toggleSound();});
@@ -626,5 +671,5 @@ $('start').addEventListener('click',showMap);$('route-dunes').addEventListener('
 function expandFallback(){const expanded=$('game-shell').classList.toggle('expanded');document.body.classList.toggle('game-expanded',expanded);announce(expanded?'Expanded view. Turn your phone sideways for a larger game.':'Expanded view closed.');}
 $('fullscreen').addEventListener('click',async()=>{const el=$('game-shell');try{if(document.fullscreenElement)await document.exitFullscreen();else if(el.requestFullscreen)await el.requestFullscreen();else expandFallback();}catch(e){expandFallback();}});
 $('exit-expanded').addEventListener('click',async()=>{if(document.fullscreenElement)await document.exitFullscreen();$('game-shell').classList.remove('expanded');document.body.classList.remove('game-expanded');});$('expanded-pause').addEventListener('click',pauseGame);
-let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;update(dt);pressed.clear();draw();requestAnimationFrame(loop);}requestAnimationFrame(loop);
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;pollController();update(dt);pressed.clear();draw();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 })();
