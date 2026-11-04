@@ -17,7 +17,7 @@ Live at https://gitnickbot.github.io/dustbyte/glovebox/ (once this folder is on 
 
 ## One-time Firebase setup
 
-Everything stays on Firebase's free Spark plan (Authentication + Firestore; no Cloud Storage, so no card needed).
+Done for project `glovebox-d28c7` (steps kept here for reference or a rebuild). Everything stays on Firebase's free Spark plan (Authentication + Firestore; no Cloud Storage, so no card needed).
 
 1. **Create the project**: https://console.firebase.google.com → Create a project → name it `glovebox` (Google Analytics can stay off).
 2. **Sign-in methods**: Build → Authentication → Get started → Sign-in method:
