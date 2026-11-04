@@ -1,6 +1,9 @@
-// Supabase project settings for Glovebox (the "groundbreaking" project, glovebox_ tables).
-// The publishable key is meant to be public; row-level security keeps each person's data private.
+// Firebase web app settings for Glovebox.
+// Paste the values from Firebase console > Project settings > General > Your apps > Web app (firebaseConfig).
+// These are meant to be public; the rules in firebase/firestore.rules keep each person's data private.
 window.GLOVEBOX_CONFIG = {
-  url: 'https://rcorrzlbqtzfiftbgpbw.supabase.co',
-  key: 'sb_publishable_juvlK1gLvAvjcNiKycpXnA_VFHQAekC'
+  apiKey: '',
+  authDomain: '',
+  projectId: '',
+  appId: ''
 };

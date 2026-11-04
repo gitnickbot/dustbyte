@@ -8,37 +8,45 @@ Live at https://gitnickbot.github.io/dustbyte/glovebox/ (once this folder is on 
 
 - **Garage**: each vehicle with its odometer, what's being worked on right now, and the last service.
 - **Log work**: repair, maintenance, part bought, inspection. Status can be Done, In progress or Waiting on parts.
-- **Receipts**: take a photo or pick one; it's saved with the record (private storage, full size).
+- **Receipts**: take a photo or pick one; it's saved with the record.
 - **Warranties**: length presets (90 days to lifetime) and/or a mileage limit. Anything ending within 60 days, or within 1,000 miles, is flagged.
 - **Reminders**: "next oil change by a date or odometer reading", marked done when the next one is logged.
 - **Shops**: every shop and parts store, with what they did and what was spent.
 - **Search** across everything, and **Copy** a vehicle's history as text for a mechanic or buyer.
-- Installable: on a phone, open the page and use the browser's "Add to Home Screen".
+- Syncs live between phone and computer. On a phone, use the browser's "Add to Home Screen".
 
-## Accounts
+## One-time Firebase setup
 
-There is no public sign-up. Create each person's login in Supabase:
+Everything stays on Firebase's free Spark plan (Authentication + Firestore; no Cloud Storage, so no card needed).
 
-1. Supabase dashboard → the **groundbreaking** project → **Authentication** → **Users** → **Add user** → **Create new user**.
-2. Enter their email and a starting password, tick **Auto Confirm User**, and create.
-3. Send them the link and the password. They can change it under **Change password** at the bottom of the Garage screen.
+1. **Create the project**: https://console.firebase.google.com → Create a project → name it `glovebox` (Google Analytics can stay off).
+2. **Sign-in methods**: Build → Authentication → Get started → Sign-in method:
+   - enable **Google** (pick a support email);
+   - enable **Email/Password** and turn on **Email link (passwordless sign-in)** inside it.
+3. **Authorized domain**: Authentication → Settings → Authorized domains → Add domain → `gitnickbot.github.io`.
+4. **Database**: Build → Firestore Database → Create database → production mode, a US location.
+5. **Rules**: Firestore Database → Rules → replace everything with the contents of [`firebase/firestore.rules`](firebase/firestore.rules) → Publish.
+6. **Who can use it**: Firestore Database → Data → Start collection → Collection ID `allowed` → Document ID = the person's email address in lowercase (for example `name@gmail.com`) → add any field (say `name` = their name) → Save. Add one document per person, including yourself if you want to try it.
+7. **Web app settings**: Project settings (gear icon) → General → Your apps → Web (`</>`) → nickname `Glovebox` (no Hosting) → Register. Copy the `apiKey`, `authDomain`, `projectId` and `appId` values into [`config.js`](config.js).
 
-Each person only ever sees their own vehicles, records and photos (row-level security on every table and on the photo bucket).
+Those config values are meant to be public. The rules are what keep data private: only signed-in people on the `allowed` list get in, and each person only ever reads and writes their own `users/<their id>/…` documents.
 
-Note: groundbreaking's sign-up trigger gives every new login a game profile named "Digger". It's harmless; the Glovebox user just never plays.
+## Signing in
+
+- **Continue with Google**: one tap for anyone with a Google account.
+- **Email me a sign-in link**: for anyone else. The link comes from Firebase's no-reply address (check spam) and should be opened on the same device.
+
+If someone signs in with an email that isn't on the `allowed` list, the app tells them to ask you to add it.
 
 ## How it's built
 
-Static files, no build step: `index.html`, `style.css`, `app.js`, `vehicles-data.js`, `config.js`, and a pinned copy of supabase-js in `vendor/`.
+Static files, no build step: `index.html`, `style.css`, `app.js`, `vehicles-data.js`, `config.js`, and pinned copies of the Firebase JS SDK 12.19.0 (compat builds) in `vendor/`.
 
-Data lives in the **groundbreaking** Supabase project, kept apart from the game by name:
+Firestore layout, per person:
 
-- `glovebox_vehicles`, `glovebox_records`: one row per vehicle/record, the details in a `data` JSON column, owned by `user_id`.
-- `glovebox-receipts` storage bucket (private): photos at `<user id>/<photo id>.jpg`, shown through short-lived signed links.
-
-SQL is in `supabase/`: `schema.sql` (tables, policies, bucket), then `02-members-only.sql` (keeps the game's anonymous sessions out of Glovebox).
-
-`config.js` holds the project URL and publishable key. Both are meant to be public; the access rules above protect the data.
+- `users/<uid>/vehicles/<id>`: one document per vehicle.
+- `users/<uid>/records/<id>`: one document per repair/service/part, with small thumbnails of its photos.
+- `users/<uid>/photos/<id>`: one full receipt photo per document, compressed JPEG (kept under Firestore's 1 MB document limit).
 
 ## Credits
 

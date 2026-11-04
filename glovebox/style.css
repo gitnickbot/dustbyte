@@ -243,6 +243,10 @@ a{color:var(--accent)}
 .signin h2,.signin p{margin:0}
 .signin .err:empty{display:none}
 .signin .err{color:var(--bad)}
+.signin .ok{color:var(--good);font-weight:650;font-size:13.5px}
+.signin-sub{display:flex;flex-direction:column;gap:10px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.08em}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .pad{padding:8px 2px}
 
 /* Bottom tabs */

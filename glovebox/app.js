@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-/* Glovebox: vehicle repair, parts and warranty history. Static app; data in Supabase (see README.md). */
+/* Glovebox: vehicle repair, parts and warranty history. Static app; data in Firebase (see README.md). */
 
 /* ---------- Vehicle catalog (year → make → model) ---------- */
 const CATALOG = {};
@@ -109,74 +109,55 @@ const S = {
   vehicles: new Map(), records: new Map(),
   view: 'garage', vehicleId: null, vtab: 'history', q: '', vq: '', openShop: null, rolled: false, everWrote: false
 };
-let sb = null, uid = null, userEmail = '', lastLoad = 0, loading = false;
+let auth = null, fs = null, uid = null, userEmail = '';
+const unsubs = [];
 const CFG = window.GLOVEBOX_CONFIG || {};
-const T = { vehicles: 'glovebox_vehicles', records: 'glovebox_records' };
-const BUCKET = 'glovebox-receipts';
-const photoUrls = new Map();
+const PHOTO_MAX_CHARS = 850000;          // Firestore documents top out at 1 MiB
+const LINK_EMAIL_KEY = 'glovebox-email-for-link';
+const photoCache = new Map();
 const clone = o => JSON.parse(JSON.stringify(o));
 function mapErr(e) {
-  if (!e) return { code: 'unknown' };
-  const m = String(e.message || e.error || '').toLowerCase(), st = Number(e.status || e.statusCode) || 0;
-  if (st === 401 || /jwt|not authenticated|invalid claim|session/.test(m)) return { code: 'auth', message: e.message };
-  if (st === 413 || /too large|payload|quota|exceeded/.test(m)) return { code: 'quota_exceeded', message: e.message };
-  if (st === 403 || /row-level security|violates|permission|unauthorized/.test(m)) return { code: 'denied', message: e.message };
-  if (st >= 500 || /fetch|network|timeout|load failed/.test(m)) return { code: 'unavailable', message: e.message };
-  return { code: 'unknown', message: e.message };
+  const c = String((e && e.code) || '').replace(/^(firestore|auth)\//, '');
+  if (c === 'permission-denied') return { code: 'denied', message: e.message };
+  if (c === 'unauthenticated') return { code: 'auth', message: e.message };
+  if (c === 'resource-exhausted') return { code: 'quota_exceeded', message: e.message };
+  if (c === 'unavailable' || c === 'deadline-exceeded' || c === 'network-request-failed') return { code: 'unavailable', message: e.message };
+  if (c === 'invalid-argument') return { code: 'too_big', message: e.message };
+  return { code: 'unknown', message: e && e.message };
 }
-let changeQueued = false;
-function changed() {
-  if (changeQueued) return;
-  changeQueued = true;
-  queueMicrotask(() => { changeQueued = false; render(); refreshSheets(); });
-}
-function table(name, key) {
+const userDoc = () => fs.collection('users').doc(uid);
+function table(name) {
   return {
     doc: id => {
-      const d = {
-        async set(data) {
-          const { error } = await sb.from(name).upsert({ id, user_id: uid, data, updated_at: new Date().toISOString() });
-          if (error) throw mapErr(error);
-          S[key].set(id, { ...clone(data), id });
-          changed();
-        },
-        async update(patch) {
-          const cur = S[key].get(id);
-          if (!cur) throw { code: 'unknown' };
-          const { id: _id, ...rest } = cur;
-          return d.set({ ...rest, ...patch });
-        },
-        async delete() {
-          const { error } = await sb.from(name).delete().eq('id', id);
-          if (error) throw mapErr(error);
-          S[key].delete(id);
-          changed();
-        }
+      const ref = () => userDoc().collection(name).doc(id);
+      return {
+        async set(data) { try { await ref().set(clone(data)); } catch (e) { throw mapErr(e); } },
+        async update(patch) { try { await ref().update(clone(patch)); } catch (e) { throw mapErr(e); } },
+        async delete() { try { await ref().delete(); } catch (e) { throw mapErr(e); } }
       };
-      return d;
     }
   };
 }
-const refs = { vehicles: table(T.vehicles, 'vehicles'), records: table(T.records, 'records') };
+const refs = { vehicles: table('vehicles'), records: table('records') };
 const photos = {
-  path: id => `${uid}/${id}.jpg`,
-  async put(id, blob) {
-    const { error } = await sb.storage.from(BUCKET).upload(photos.path(id), blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' });
-    if (error) throw mapErr(error);
+  async put(id, dataUrl) {
+    try { await userDoc().collection('photos').doc(id).set({ dataUrl, createdAt: Date.now() }); }
+    catch (e) { throw mapErr(e); }
+    photoCache.set(id, dataUrl);
   },
   async remove(ids) {
-    if (!ids.length) return;
-    ids.forEach(i => photoUrls.delete(i));
-    const { error } = await sb.storage.from(BUCKET).remove(ids.map(photos.path));
-    if (error) throw mapErr(error);
+    for (const id of ids) {
+      photoCache.delete(id);
+      try { await userDoc().collection('photos').doc(id).delete(); } catch (e) { throw mapErr(e); }
+    }
   },
   async url(id) {
-    const c = photoUrls.get(id);
-    if (c && c.exp > Date.now()) return c.url;
-    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(photos.path(id), 3600);
-    if (error) throw mapErr(error);
-    photoUrls.set(id, { url: data.signedUrl, exp: Date.now() + 50 * 60000 });
-    return data.signedUrl;
+    if (photoCache.has(id)) return photoCache.get(id);
+    let snap;
+    try { snap = await userDoc().collection('photos').doc(id).get(); } catch (e) { throw mapErr(e); }
+    const u = snap.exists ? safeImg(snap.data().dataUrl) : '';
+    if (u) photoCache.set(id, u);
+    return u;
   }
 };
 
@@ -337,7 +318,7 @@ function banners() {
   return h;
 }
 const footer = () => `<div class="foot">
-  <p>Signed in as <b>${esc(userEmail)}</b> · <button class="link" data-act="change-pw">Change password</button> · <button class="link" data-act="signout">Sign out</button></p>
+  <p>Signed in as <b>${esc(userEmail)}</b> · <button class="link" data-act="signout">Sign out</button></p>
   <p>Your records and receipt photos are private to your sign-in and sync between your phone and computer. On a phone, use your browser's “Add to Home Screen” to keep Glovebox one tap away.</p>
   <p>Year, make and model lists from <a href="https://github.com/abhionlyone/us-car-models-data" target="_blank" rel="noopener">US Car Models Data</a> (1992–2026), CC BY 4.0. Missing yours? Pick “Other” and type it in.</p>
 </div>`;
@@ -345,20 +326,35 @@ const footer = () => `<div class="foot">
 /* ---------- Views ---------- */
 function viewState() {
   const brand = `<header class="brand"><div><h1 class="wordmark"><span class="mark" aria-hidden="true"></span>Glovebox</h1><p>Repairs, parts and warranties for every vehicle</p></div></header>`;
-  if (S.status === 'signin') return brand + `<form class="state signin" id="signin-form" novalidate>
+  const msg = `<p class="err" id="si-msg" role="alert">${esc(S.signinErr || '')}</p>${S.signinOk ? `<p class="ok" role="status">${esc(S.signinOk)}</p>` : ''}`;
+  if (S.status === 'signin') return brand + `<div class="state signin">
       <h2>Sign in</h2>
-      <p>Use the email and password you were given for Glovebox.</p>
-      <div class="field"><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false"></div>
-      <div class="field"><label for="si-pw">Password</label><input id="si-pw" type="password" autocomplete="current-password"></div>
-      <p class="err" id="si-msg" role="alert"></p>
+      <p>Use the Google account or email address that was set up for Glovebox.</p>
+      <button type="button" class="btn primary wide" data-act="google">Continue with Google</button>
+      <div class="or" aria-hidden="true"><span>or</span></div>
+      <form id="link-form" class="signin-sub" novalidate>
+        <div class="field"><label for="si-email">Email me a sign-in link</label><input id="si-email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" value="${esc(S.linkEmail || '')}"></div>
+        <button type="submit" class="btn wide">Send link</button>
+      </form>
+      ${msg}
+    </div>`;
+  if (S.status === 'confirmemail') return brand + `<form class="state signin" id="confirm-form" novalidate>
+      <h2>Finish signing in</h2>
+      <p>You opened the sign-in link on a different device or browser. Type the email address you asked for the link with.</p>
+      <div class="field"><label for="ce-email">Email</label><input id="ce-email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false"></div>
       <button type="submit" class="btn primary wide">Sign in</button>
-      <p class="hint">Forgot your password? Ask the person who set up Glovebox for you to reset it.</p>
+      ${msg}
     </form>`;
+  if (S.status === 'notallowed') return brand + `<div class="state signin">
+      <h2>This account isn't set up yet</h2>
+      <p>You're signed in as <b>${esc(userEmail || 'an account with no email')}</b>, but it isn't on Glovebox's list. Ask the person who set up Glovebox to add this email, then reload.</p>
+      <button type="button" class="btn wide" data-act="signout-now">Sign in with a different account</button>
+    </div>`;
   if (S.status === 'loading' && !S.slow) return brand + `<div class="skel"></div><div class="skel"></div>`;
   const st = {
     loading: ['Still loading your garage', 'The server is slow to answer. Check your connection.'],
     loadfail: ["Couldn't load your records", 'Check your connection, then try again.'],
-    config: ["Glovebox isn't set up yet", 'This copy is missing its server settings in config.js.']
+    config: ["Glovebox isn't set up yet", 'This copy is missing its Firebase settings in config.js.']
   }[S.status] || ['Something went wrong', 'Reload the page and try again.'];
   return brand + `<div class="state"><h2>${esc(st[0])}</h2><p>${esc(st[1])}</p>${S.status === 'loadfail' ? '<button class="btn primary" data-act="resub" style="margin-top:16px">Try again</button>' : ''}</div>`;
 }
@@ -646,7 +642,8 @@ function writeErr(e) {
   switch (e && e.code) {
     case 'auth': return 'Your sign-in expired. Reload the page, sign in, and try again.';
     case 'quota_exceeded': return 'Storage is full. Delete some old photos or records, then try again.';
-    case 'denied': return "That couldn't be saved with your sign-in. Sign out and back in, then try again.";
+    case 'denied': return "Your account isn't allowed to save here. Ask the person who set up Glovebox.";
+    case 'too_big': return 'That photo is too large to save. Try a closer shot, or a screenshot of it.';
     case 'unavailable': return "Couldn't reach the server. Check your connection and try again.";
     default: return "Couldn't save. Try again in a moment.";
   }
@@ -681,11 +678,15 @@ function drawScaled(img, maxSide) {
 }
 async function compressPhoto(file) {
   const img = await loadImage(file);
-  const c = drawScaled(img, 2000);
-  const blob = await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', 0.82));
+  let side = 1800, q = 0.82, url = '';
+  for (let i = 0; i < 12; i++) {
+    url = drawScaled(img, side).toDataURL('image/jpeg', q);
+    if (url.length <= PHOTO_MAX_CHARS) break;
+    if (q > 0.58) q -= 0.08; else { side = Math.round(side * 0.82); q = 0.74; }
+  }
   const thumb = drawScaled(img, 240).toDataURL('image/jpeg', 0.62);
   if (img.close) try { img.close(); } catch (e) { }
-  return { blob, thumb };
+  return { full: url, thumb };
 }
 function openViewer(ids, idx, local) {
   let i = idx || 0, zoom = false;
@@ -1002,9 +1003,9 @@ function openRecordForm(init = {}, opts = {}) {
       };
       $('f-photos').addEventListener('click', e => {
         const rm = e.target.closest('[data-rm]');
-        if (rm) { const [p] = F.photos.splice(Number(rm.dataset.rm), 1); if (p && !p.isNew) F.removed.push(p.id); if (p && p.local) URL.revokeObjectURL(p.local); renderPhotos(); return; }
+        if (rm) { const [p] = F.photos.splice(Number(rm.dataset.rm), 1); if (p && !p.isNew) F.removed.push(p.id); renderPhotos(); return; }
         const vw = e.target.closest('[data-view]');
-        if (vw) { F.photos.forEach(p => p.local && local.set(p.id, p.local)); openViewer(F.photos.map(p => p.id), Number(vw.dataset.view), local); }
+        if (vw) { F.photos.forEach(p => p.full && local.set(p.id, p.full)); openViewer(F.photos.map(p => p.id), Number(vw.dataset.view), local); }
       });
       async function addFiles(files) {
         const list = [...files].filter(f => f && (/^image\//.test(f.type) || !f.type)).slice(0, Math.max(0, MAX_PHOTOS - F.photos.length));
@@ -1012,7 +1013,7 @@ function openRecordForm(init = {}, opts = {}) {
         F.adding += list.length; renderPhotos();
         let added = 0;
         for (const f of list) {
-          try { const c = await compressPhoto(f); F.photos.push({ id: newId(), thumb: c.thumb, blob: c.blob, local: URL.createObjectURL(c.blob), isNew: true }); added++; }
+          try { const c = await compressPhoto(f); F.photos.push({ id: newId(), thumb: c.thumb, full: c.full, isNew: true }); added++; }
           catch (e) { toast("Couldn't open that photo. Try a JPG or PNG, or take a screenshot of it."); }
           F.adding--; renderPhotos();
         }
@@ -1059,7 +1060,7 @@ async function saveRecord(s, F, v) {
   setBusy(s, true);
   try {
     for (const p of F.photos) {
-      if (p.isNew) { await write(() => photos.put(p.id, p.blob)); p.isNew = false; }
+      if (p.isNew) { await write(() => photos.put(p.id, p.full)); p.isNew = false; }
       rec.photos.push({ id: p.id, thumb: p.thumb });
     }
     await write(() => refs.records.doc(rid).set(rec));
@@ -1161,9 +1162,10 @@ const ACTS = {
   'copy-history': t => copyHistory(t.dataset.id),
   'toggle-shop': t => { S.openShop = S.openShop === t.dataset.key ? null : t.dataset.key; render(); },
   'due-done': t => { const r = S.records.get(t.dataset.id); const d = r && dueInfo(r); if (!r) return; openRecordForm({ vehicleId: r.vehicleId, title: (d?.label || r.title).replace(/^next\s+/i, '').replace(/^./, c => c.toUpperCase()), kind: r.kind, clears: [r.id] }); },
-  resub: () => loadAll(),
-  'change-pw': () => openPasswordForm(),
-  signout: async () => { if (await confirmBox({ title: 'Sign out of Glovebox?', text: 'Your records stay saved. Sign in again any time with the same email and password.', ok: 'Sign out', danger: false })) { try { await sb.auth.signOut(); } catch (e) { signedOut(); } } }
+  resub: () => { if (uid) subscribe(); },
+  google: () => signInGoogle(),
+  'signout-now': () => auth && auth.signOut(),
+  signout: async () => { if (await confirmBox({ title: 'Sign out of Glovebox?', text: 'Your records stay saved. Sign in again any time with the same account.', ok: 'Sign out', danger: false })) { try { await auth.signOut(); } catch (e) { signedOut(); } } }
 };
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]');
@@ -1183,94 +1185,121 @@ document.getElementById('snapInput').addEventListener('change', e => {
 
 
 /* ---------- Account ---------- */
-function openPasswordForm() {
-  openSheet({
-    title: 'Change password',
-    body: `<div class="form"><section class="fcard">
-      <div class="field"><label for="pw-new">New password</label><input id="pw-new" type="password" autocomplete="new-password"></div>
-      <div class="field"><label for="pw-new2">Type it again</label><input id="pw-new2" type="password" autocomplete="new-password"></div>
-      <p class="hint">At least 8 characters.</p></section></div>`,
-    primary: {
-      label: 'Save', onClick: async s => {
-        const a = s.body.querySelector('#pw-new'), b = s.body.querySelector('#pw-new2');
-        if (a.value.length < 8) return fieldErr(s.body, a, 'Use at least 8 characters.');
-        if (a.value !== b.value) return fieldErr(s.body, b, "These don't match.");
-        setBusy(s, true);
-        const { error } = await sb.auth.updateUser({ password: a.value });
-        if (error) { setBusy(s, false); return fieldErr(s.body, a, /different|same/i.test(error.message || '') ? 'Pick a password different from your current one.' : "Couldn't change it. Check your connection and try again."); }
-        closeSheet(s); toast('Password changed');
-      }
-    }
-  });
+function authMsg(e) {
+  const c = String((e && e.code) || '').replace(/^auth\//, '');
+  return {
+    'unauthorized-domain': "This web address isn't on Firebase's list of authorized domains yet.",
+    'operation-not-allowed': "That sign-in method isn't turned on in Firebase yet.",
+    'network-request-failed': "Couldn't reach the server. Check your connection.",
+    'invalid-email': "That doesn't look like an email address.",
+    'invalid-action-code': 'That sign-in link has expired or was already used. Ask for a new one.',
+    'expired-action-code': 'That sign-in link has expired. Ask for a new one.',
+    'too-many-requests': 'Too many tries. Wait a few minutes, then try again.',
+    'user-disabled': 'This account has been turned off.'
+  }[c] || 'Sign-in failed. Try again in a moment.';
 }
-function signedOut() {
-  uid = null; userEmail = '';
-  S.vehicles = new Map(); S.records = new Map(); photoUrls.clear();
-  while (sheets.length) closeSheet(sheets[sheets.length - 1]);
-  Object.assign(S, { status: 'signin', view: 'garage', vehicleId: null, q: '', vq: '', subError: false, rolled: false });
-  render();
+function setSigninMsg(err, ok) { S.signinErr = err || ''; S.signinOk = ok || ''; render(); }
+async function signInGoogle() {
+  setSigninMsg('', '');
+  const p = new firebase.auth.GoogleAuthProvider();
+  p.setCustomParameters({ prompt: 'select_account' });
+  try { await auth.signInWithPopup(p); }
+  catch (e) {
+    const c = String(e && e.code || '');
+    if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment') {
+      try { await auth.signInWithRedirect(p); } catch (e2) { setSigninMsg(authMsg(e2)); }
+    } else if (c !== 'auth/popup-closed-by-user' && c !== 'auth/cancelled-popup-request') setSigninMsg(authMsg(e));
+  }
 }
 document.addEventListener('submit', async e => {
-  if (e.target.id !== 'signin-form') return;
-  e.preventDefault();
-  const f = e.target, email = f.querySelector('#si-email').value.trim(), pw = f.querySelector('#si-pw').value;
-  const btn = f.querySelector('button[type="submit"]'), msg = f.querySelector('#si-msg');
-  if (!email || !pw) { msg.textContent = 'Enter your email and password.'; return; }
-  btn.disabled = true; btn.textContent = 'Signing in…'; msg.textContent = '';
-  let res;
-  try { res = await sb.auth.signInWithPassword({ email, password: pw }); } catch (err) { res = { error: err }; }
-  if (res.error || !res.data || !res.data.session) {
-    btn.disabled = false; btn.textContent = 'Sign in';
-    const m = String(res.error && res.error.message || '');
-    msg.textContent = /invalid|credentials/i.test(m) ? "That email and password don't match. Check them and try again."
-      : /confirm/i.test(m) ? 'This account still needs to be confirmed. Ask the person who set it up.'
-      : /fetch|network/i.test(m) ? "Couldn't reach the server. Check your connection." : 'Sign-in failed. Try again in a moment.';
-    return;
+  if (e.target.id === 'link-form') {
+    e.preventDefault();
+    const email = e.target.querySelector('#si-email').value.trim().toLowerCase();
+    S.linkEmail = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setSigninMsg("That doesn't look like an email address.");
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      await auth.sendSignInLinkToEmail(email, { url: location.origin + location.pathname, handleCodeInApp: true });
+      try { localStorage.setItem(LINK_EMAIL_KEY, email); } catch (x) { }
+      setSigninMsg('', `Check ${email} for a sign-in link (look in spam too). Open it on this device.`);
+    } catch (err) { setSigninMsg(authMsg(err)); }
+  } else if (e.target.id === 'confirm-form') {
+    e.preventDefault();
+    const email = e.target.querySelector('#ce-email').value.trim().toLowerCase();
+    if (!email) return setSigninMsg('Type your email address.');
+    await finishEmailLink(email);
   }
-  setSession(res.data.session);
-  loadAll();
 });
-function setSession(session) { uid = session.user.id; userEmail = session.user.email || ''; }
-async function fetchAll(tbl) {
-  const out = [], page = 1000;
-  for (let from = 0; ; from += page) {
-    const { data, error } = await sb.from(tbl).select('id,data').order('id').range(from, from + page - 1);
-    if (error) throw mapErr(error);
-    out.push(...data);
-    if (data.length < page) break;
-  }
-  return out;
-}
-async function loadAll(quiet) {
-  if (loading || !uid) return;
-  loading = true;
-  if (!quiet && S.status !== 'ok') { S.status = 'loading'; render(); }
-  const slowT = setTimeout(() => { S.slow = true; render(); }, 10000);
+async function finishEmailLink(email) {
   try {
-    const [vs, rs] = await Promise.all([fetchAll(T.vehicles), fetchAll(T.records)]);
-    S.vehicles = new Map(vs.map(x => [x.id, { ...(x.data || {}), id: x.id }]));
-    S.records = new Map(rs.map(x => [x.id, { ...(x.data || {}), id: x.id }]));
-    S.status = 'ok'; S.subError = false; lastLoad = Date.now();
-  } catch (e) {
-    if (e && e.code === 'auth') { clearTimeout(slowT); loading = false; signedOut(); return; }
-    if (S.status === 'ok') S.subError = true; else S.status = 'loadfail';
+    await auth.signInWithEmailLink(email, location.href);
+    try { localStorage.removeItem(LINK_EMAIL_KEY); } catch (x) { }
+    history.replaceState(null, '', location.pathname);
+  } catch (err) {
+    history.replaceState(null, '', location.pathname);
+    S.status = 'signin'; setSigninMsg(authMsg(err));
   }
-  clearTimeout(slowT); S.slow = false; loading = false;
-  render(); refreshSheets();
 }
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && uid && S.status === 'ok' && !sheets.length && Date.now() - lastLoad > 60000) loadAll(true);
-});
+function signedOut() {
+  while (unsubs.length) { try { unsubs.pop()(); } catch (e) { } }
+  uid = null; userEmail = '';
+  S.vehicles = new Map(); S.records = new Map(); photoCache.clear();
+  while (sheets.length) closeSheet(sheets[sheets.length - 1]);
+  Object.assign(S, { status: 'signin', view: 'garage', vehicleId: null, q: '', vq: '', subError: false, rolled: false, slow: false });
+  render();
+}
+function subscribe() {
+  while (unsubs.length) { try { unsubs.pop()(); } catch (e) { } }
+  S.subError = false;
+  let gotV = false, gotR = false;
+  const slowT = setTimeout(() => { if (!(gotV && gotR)) { S.slow = true; render(); } }, 10000);
+  const done = () => {
+    if (gotV && gotR) { clearTimeout(slowT); S.slow = false; if (S.status === 'loading') S.status = 'ok'; }
+    render(); refreshSheets();
+  };
+  const fail = e => {
+    clearTimeout(slowT); S.slow = false;
+    const m = mapErr(e);
+    if (m.code === 'denied') S.status = 'notallowed';
+    else if (S.status === 'ok') S.subError = true;
+    else S.status = 'loadfail';
+    render();
+  };
+  unsubs.push(userDoc().collection('vehicles').onSnapshot(snap => {
+    S.vehicles = new Map(snap.docs.map(d => [d.id, { ...d.data(), id: d.id }])); gotV = true; done();
+  }, fail));
+  unsubs.push(userDoc().collection('records').onSnapshot(snap => {
+    S.records = new Map(snap.docs.map(d => [d.id, { ...d.data(), id: d.id }])); gotR = true; done();
+  }, fail));
+}
+async function signedIn(user) {
+  uid = user.uid; userEmail = (user.email || '').toLowerCase();
+  S.status = 'loading'; S.signinErr = ''; S.signinOk = ''; render();
+  let ok = false;
+  try { ok = !!userEmail && (await fs.collection('allowed').doc(userEmail).get()).exists; } catch (e) { ok = false; }
+  if (uid !== user.uid) return;
+  if (!ok) { S.status = 'notallowed'; render(); return; }
+  subscribe();
+}
 async function start() {
   render();
-  if (!CFG.url || !CFG.key || !window.supabase) { S.status = 'config'; render(); return; }
-  sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'glovebox-auth' } });
-  sb.auth.onAuthStateChange(event => { if (event === 'SIGNED_OUT') setTimeout(signedOut, 0); });
-  let session = null;
-  try { session = (await sb.auth.getSession()).data.session; } catch (e) { session = null; }
-  if (!session) { S.status = 'signin'; render(); return; }
-  setSession(session);
-  loadAll();
+  if (!window.firebase || !CFG.apiKey || !CFG.projectId) { S.status = 'config'; render(); return; }
+  firebase.initializeApp(CFG);
+  auth = firebase.auth();
+  fs = firebase.firestore();
+  try { fs.settings({ ignoreUndefinedProperties: true }); } catch (e) { }
+  try { auth.useDeviceLanguage(); } catch (e) { }
+  if (auth.isSignInWithEmailLink(location.href)) {
+    let email = '';
+    try { email = localStorage.getItem(LINK_EMAIL_KEY) || ''; } catch (e) { }
+    if (email) await finishEmailLink(email);
+    else { S.status = 'confirmemail'; render(); }
+  }
+  auth.onAuthStateChanged(user => {
+    if (user && !user.isAnonymous) signedIn(user);
+    else if (S.status !== 'confirmemail') signedOut();
+  });
 }
 start();
 })();
