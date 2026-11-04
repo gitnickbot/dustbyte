@@ -70,7 +70,9 @@ const ICONS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   store: '<path d="M4 9.5L5.5 4h13L20 9.5"/><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"/><path d="M5.5 11.5V20h13v-8.5M10 20v-5h4v5"/>',
-  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  phone: '<path d="M5.2 4h3.3l1.6 4.1-2.1 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2.1 4.1 1.6v3.3a1.6 1.6 0 0 1-1.7 1.6A16.2 16.2 0 0 1 3.6 5.7 1.6 1.6 0 0 1 5.2 4z"/>',
+  pin: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'
 };
 const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 
@@ -106,7 +108,7 @@ const MAX_PHOTOS = 6;
 /* ---------- State ---------- */
 const S = {
   status: 'loading', slow: false, subError: false, readOnly: false, canWrite: null,
-  vehicles: new Map(), records: new Map(),
+  vehicles: new Map(), records: new Map(), contacts: new Map(),
   view: 'garage', vehicleId: null, vtab: 'history', q: '', vq: '', openShop: null, rolled: false, everWrote: false
 };
 let auth = null, fs = null, uid = null, userEmail = '';
@@ -138,7 +140,7 @@ function table(name) {
     }
   };
 }
-const refs = { vehicles: table('vehicles'), records: table('records') };
+const refs = { vehicles: table('vehicles'), records: table('records'), contacts: table('contacts') };
 const photos = {
   async put(id, dataUrl) {
     try { await userDoc().collection('photos').doc(id).set({ dataUrl, createdAt: Date.now() }); }
@@ -505,34 +507,138 @@ function viewWarranties() {
       : `<div class="state"><h2>No warranties saved yet</h2><p>When you log a repair or a part, switch on “This has a warranty” and add how long it lasts. It shows up here with the receipt, so you can prove it when something fails.</p></div>`}`;
 }
 
+/* ---------- Contacts (shops, mechanics, parts stores) ---------- */
+const CONTACT_KINDS = [{ id: 'shop', label: 'Shop' }, { id: 'mechanic', label: 'Mechanic' }, { id: 'store', label: 'Parts store' }];
+const CONTACT_KIND = Object.fromEntries(CONTACT_KINDS.map(k => [k.id, k]));
+const nameKey = s => String(s || '').trim().toLowerCase();
+const contactFor = name => { const k = nameKey(name); if (!k) return null; for (const c of S.contacts.values()) if (nameKey(c.name) === k) return c; return null; };
+const telHref = p => { const d = String(p || '').replace(/[^0-9+*#,]/g, ''); return /\d{3,}/.test(d) ? 'tel:' + d : ''; };
+const mapsHref = a => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(a || '').replace(/\s+/g, ' ').trim());
+function contactNames(which) {
+  const lastUse = new Map();
+  for (const r of allRecords()) for (const nm of [r.doneBy, r.vendor]) { const k = nameKey(nm); if (k && !lastUse.has(k)) lastUse.set(k, r.date || ''); }
+  const saved = [...S.contacts.values()].filter(c => c.name && (which === 'store' ? c.kind === 'store' : c.kind !== 'store'))
+    .sort((a, b) => (lastUse.get(nameKey(b.name)) || '').localeCompare(lastUse.get(nameKey(a.name)) || '') || a.name.localeCompare(b.name));
+  const out = new Map();
+  for (const c of saved) out.set(nameKey(c.name), c.name);
+  for (const nm of knownNames(which === 'store' ? 'vendor' : 'doneBy')) if (!out.has(nameKey(nm))) out.set(nameKey(nm), nm);
+  return [...out.values()];
+}
+function whoHTML(name) {
+  if (!name) return '—';
+  const c = contactFor(name), tel = c && telHref(c.phone);
+  return esc(name) + (tel ? `<br><a class="tel" href="${esc(tel)}">${icon('phone')}${esc(c.phone)}</a>` : '');
+}
+
 function viewShops() {
-  const shops = new Map(), stores = new Map();
+  const ent = new Map();
+  const get = name => { const k = nameKey(name); let e = ent.get(k); if (!e) { e = { k, name: String(name).trim(), contact: null, worked: [], bought: [], vids: new Set() }; ent.set(k, e); } return e; };
   let diy = 0;
-  const add = (map, name, r, cost) => { const k = name.toLowerCase(); let e = map.get(k); if (!e) { e = { k, name, jobs: [], total: 0, vids: new Set() }; map.set(k, e); } e.jobs.push(r); e.vids.add(r.vehicleId); if (cost) e.total += Number(r.cost) || 0; };
   for (const r of allRecords()) {
     const by = (r.doneBy || '').trim(), ve = (r.vendor || '').trim();
-    if (by) { if (isDIY(by)) diy++; else add(shops, by, r, true); }
-    if (ve) add(stores, ve, r, !by || isDIY(by));
+    if (by) { if (isDIY(by)) diy++; else { const e = get(by); e.worked.push(r); e.vids.add(r.vehicleId); } }
+    if (ve && nameKey(ve) !== nameKey(by)) { const e = get(ve); e.bought.push(r); e.vids.add(r.vehicleId); }
   }
-  const card = (e, pre, verb) => {
-    const key = pre + e.k, opened = S.openShop === key, last = e.jobs[0];
+  for (const c of S.contacts.values()) { if (!c.name) continue; const e = get(c.name); e.contact = c; e.name = c.name; }
+  const isStore = e => e.contact ? e.contact.kind === 'store' : !e.worked.length;
+  const jobsOf = e => [...new Set([...e.worked, ...e.bought])].sort(byDateDesc);
+  const lastOf = e => { const j = jobsOf(e); return j.length ? (j[0].date || '') : ''; };
+  const order = (a, b) => lastOf(b).localeCompare(lastOf(a)) || a.name.localeCompare(b.name);
+  const card = e => {
+    const c = e.contact, opened = S.openShop === e.k, store = isStore(e), jobs = jobsOf(e);
+    const total = sum(e.worked.map(r => r.cost)) + sum(e.bought.filter(r => !r.doneBy || isDIY(r.doneBy)).map(r => r.cost));
+    const kind = c ? CONTACT_KIND[c.kind]?.label || 'Shop' : (store ? 'Parts store' : 'Shop');
+    const line = jobs.length ? `${plural(jobs.length, store && !e.worked.length ? 'purchase' : 'job')}${total ? ' · ' + moneyShort(total) : ''} · last ${fmtDate(jobs[0].date)}` : 'Nothing logged yet';
+    const tel = c && telHref(c.phone);
     const vnames = [...e.vids].map(id => vShort(S.vehicles.get(id)));
     return `<div class="shop" data-open="${opened ? 1 : 0}">
-      <button class="shop-h" data-act="toggle-shop" data-key="${esc(key)}" aria-expanded="${opened}">
-        ${icon(pre === 's:' ? 'wrench' : 'store')}
-        <span class="grow"><span class="nm">${esc(e.name)}</span><span class="sub">${esc(plural(e.jobs.length, verb))}${e.total ? ' · ' + moneyShort(e.total) : ''} · last ${esc(fmtDate(last.date))}</span><span class="sub">${esc(vnames.join(', '))}</span></span>
-        ${icon('chev', 'chev')}
-      </button>
-      ${opened ? `<div class="wo-list">${e.jobs.map(r => recordRow(r, { showVehicle: true })).join('')}</div>` : ''}
+      <div class="shop-h">
+        <button class="shop-toggle" data-act="toggle-shop" data-key="${esc(e.k)}" aria-expanded="${opened}">
+          ${icon(store ? 'store' : 'wrench')}
+          <span class="grow"><span class="nm">${esc(e.name)}</span><span class="sub">${esc(kind)} · ${esc(line)}</span>${c && c.phone ? `<span class="sub mono">${esc(c.phone)}</span>` : ''}</span>
+          ${icon('chev', 'chev')}
+        </button>
+        ${tel ? `<a class="btn sm call" href="${esc(tel)}" aria-label="Call ${esc(e.name)}">${icon('phone')}Call</a>` : ''}
+      </div>
+      ${opened ? `<div class="shop-body">
+          ${c && c.address ? `<p class="addr">${icon('pin')}<a href="${esc(mapsHref(c.address))}" target="_blank" rel="noopener">${esc(c.address)}</a></p>` : ''}
+          ${c && c.notes ? `<p class="cnotes">${esc(c.notes)}</p>` : ''}
+          ${vnames.length ? `<p class="sub">Worked on: ${esc(vnames.join(', '))}</p>` : ''}
+          ${S.readOnly ? '' : `<div class="btnrow">${c
+            ? `<button class="btn sm" data-act="edit-contact" data-id="${esc(c.id)}">${icon('edit')}Edit</button>`
+            : `<button class="btn sm" data-act="save-contact" data-name="${esc(e.name)}" data-kind="${store ? 'store' : 'shop'}">${icon('plus')}Add phone &amp; address</button>`}</div>`}
+        </div>
+        ${jobs.length ? `<div class="wo-list">${jobs.map(r => recordRow(r, { showVehicle: true })).join('')}</div>` : ''}` : ''}
     </div>`;
   };
-  const byLast = (a, b) => (b.jobs[0].date || '').localeCompare(a.jobs[0].date || '');
-  const sl = [...shops.values()].sort(byLast), pl = [...stores.values()].sort(byLast);
-  return `<header class="brand"><div><h1 class="page-title">Shops &amp; stores</h1><p>Who worked on what, and where the parts came from</p></div></header>${banners()}
-    ${sl.length ? `<div class="sec-h"><h2>Shops &amp; mechanics</h2><span>${sl.length}</span></div>${sl.map(e => card(e, 's:', 'job')).join('')}` : ''}
+  const all = [...ent.values()];
+  const sl = all.filter(e => !isStore(e)).sort(order), pl = all.filter(isStore).sort(order);
+  return `<header class="brand"><div><h1 class="page-title">Shops &amp; stores</h1><p>Who to call, who worked on what, and where the parts came from</p></div>${S.readOnly ? '' : `<button class="btn sm" data-act="add-contact">${icon('plus')}Add</button>`}</header>${banners()}
+    ${sl.length ? `<div class="sec-h"><h2>Shops &amp; mechanics</h2><span>${sl.length}</span></div>${sl.map(card).join('')}` : ''}
     ${diy ? `<p class="pad muted">${icon('wrench')} ${plural(diy, 'job')} done yourself.</p>` : ''}
-    ${pl.length ? `<div class="sec-h"><h2>Parts stores</h2><span>${pl.length}</span></div>${pl.map(e => card(e, 'p:', 'purchase')).join('')}` : ''}
-    ${!sl.length && !pl.length ? `<div class="state"><h2>No shops yet</h2><p>Fill in “Who did the work” and “Parts bought from” when you log something, and every shop and store gets its own history here.</p></div>` : ''}`;
+    ${pl.length ? `<div class="sec-h"><h2>Parts stores</h2><span>${pl.length}</span></div>${pl.map(card).join('')}` : ''}
+    ${!sl.length && !pl.length ? `<div class="state"><h2>No shops yet</h2><p>Tap Add to save the shops, mechanics and parts stores you call, with their phone numbers and addresses. Anyone you name when you log work shows up here too.</p>${S.readOnly ? '' : `<button class="btn primary" data-act="add-contact" style="margin-top:16px">${icon('plus')}Add a shop or mechanic</button>`}</div>` : ''}`;
+}
+
+function openContactForm(c, preset = {}) {
+  if (S.readOnly) return toast(writeErr({ code: 'read_only' }));
+  let kind = c?.kind || preset.kind || 'shop';
+  const body = `<div class="form">
+    <section class="fcard">
+      <div class="field"><label for="c-name">Name</label><input id="c-name" maxlength="80" autocomplete="organization" placeholder="e.g. Kowalski Auto Service, Mike (mobile mechanic)" value="${esc(c?.name ?? preset.name ?? '')}"></div>
+      <div class="field"><span class="flabel" id="c-kind-l">Type</span><div class="seg" role="radiogroup" aria-labelledby="c-kind-l" id="c-kind">${CONTACT_KINDS.map(k => `<button type="button" role="radio" aria-checked="${kind === k.id}" data-ck="${k.id}">${icon(k.id === 'store' ? 'store' : 'wrench')}${k.label}</button>`).join('')}</div></div>
+      <div class="field"><label for="c-phone">Phone</label><input id="c-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" placeholder="(586) 555-0123" value="${esc(c?.phone)}"></div>
+      <div class="field"><label for="c-address">Address</label><textarea id="c-address" rows="2" maxlength="300" autocomplete="street-address" placeholder="Street, city">${esc(c?.address)}</textarea></div>
+      <div class="field"><label for="c-notes">Notes <span class="opt">optional</span></label><textarea id="c-notes" rows="3" maxlength="1000" placeholder="Hours, who to ask for, what they're good at, rates">${esc(c?.notes)}</textarea></div>
+    </section>
+    ${c ? `<button type="button" class="btn danger-ghost wide" id="c-del">Remove from my list</button>` : ''}
+  </div>`;
+  openSheet({
+    title: c ? 'Edit contact' : 'Add a shop or mechanic',
+    body,
+    primary: { label: 'Save', onClick: s => saveContact(s, c, () => kind, preset.renameFrom) },
+    onMount: s => {
+      s.body.querySelector('#c-kind').addEventListener('click', e => {
+        const b = e.target.closest('[data-ck]'); if (!b) return;
+        kind = b.dataset.ck;
+        s.body.querySelectorAll('[data-ck]').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+      });
+      if (c) s.body.querySelector('#c-del').addEventListener('click', async () => {
+        const ok = await confirmBox({ title: `Remove ${c.name}?`, text: 'Their phone number and address are deleted. Past records keep the name.', ok: 'Remove' });
+        if (!ok) return;
+        setBusy(s, true, 'Removing…');
+        try { await write(() => refs.contacts.doc(c.id).delete()); closeSheet(s); toast('Removed'); }
+        catch (e) { setBusy(s, false); toast(writeErr(e)); }
+      });
+    }
+  });
+}
+async function saveContact(s, c, getKind, renameFrom) {
+  const $ = id => s.body.querySelector('#' + id);
+  const name = $('c-name').value.trim().replace(/\s+/g, ' ');
+  if (!name) return fieldErr(s.body, $('c-name'), 'Add a name.');
+  const dupe = contactFor(name);
+  if (dupe && (!c || dupe.id !== c.id)) return fieldErr(s.body, $('c-name'), `${dupe.name} is already in your list.`);
+  fieldErr(s.body, null);
+  const id = c?.id || newId();
+  const data = { name, kind: getKind(), phone: $('c-phone').value.trim(), address: $('c-address').value.trim(), notes: $('c-notes').value.trim(), createdAt: c?.createdAt || Date.now(), updatedAt: Date.now() };
+  setBusy(s, true);
+  try {
+    await write(() => refs.contacts.doc(id).set(data));
+    const old = nameKey(c ? c.name : renameFrom);
+    if (old && old !== nameKey(name)) {
+      for (const r of allRecords()) {
+        const patch = {};
+        if (nameKey(r.doneBy) === old) patch.doneBy = name;
+        if (nameKey(r.vendor) === old) patch.vendor = name;
+        if (r.warranty && r.warranty.on && nameKey(r.warranty.provider) === old) patch.warranty = { ...r.warranty, provider: name };
+        if (Object.keys(patch).length) { patch.updatedAt = Date.now(); try { await write(() => refs.records.doc(r.id).update(patch)); } catch (e) { } }
+      }
+    }
+    S.openShop = nameKey(name);
+    closeSheet(s);
+    toast(c ? 'Saved' : `${name} added`);
+  } catch (e) { setBusy(s, false); toast(writeErr(e)); }
 }
 
 function renderTabs() {
@@ -872,7 +978,7 @@ function openRecordForm(init = {}, opts = {}) {
   };
   const w = rec?.warranty || { on: false };
   const nx = rec?.next || null;
-  const shops = knownNames('doneBy'), vendors = knownNames('vendor');
+  const shops = contactNames('work'), vendors = contactNames('store');
   const openDues = recordsOf(v.id).filter(r => r.id !== F.id).map(dueInfo).filter(Boolean);
   const body = `<div class="form">
     <section class="fcard">
@@ -897,9 +1003,9 @@ function openRecordForm(init = {}, opts = {}) {
     <section class="fcard">
       <h3>Who and where</h3>
       <div class="field"><label for="f-doneby">Who did the work</label><input id="f-doneby" list="dl-shops" maxlength="80" autocomplete="off" placeholder="Shop or mechanic" value="${esc(rec?.doneBy)}">
-        <div class="quick">${[DIY, ...shops.slice(0, 3)].map(n => `<button type="button" data-fill="f-doneby" data-val="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>
+        <div class="quick">${[DIY, ...shops.slice(0, 4)].map(n => `<button type="button" data-fill="f-doneby" data-val="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>
       <div class="field"><label for="f-vendor">Parts bought from</label><input id="f-vendor" list="dl-vendors" maxlength="80" autocomplete="off" placeholder="e.g. AutoZone, RockAuto, the dealer" value="${esc(rec?.vendor)}">
-        ${vendors.length ? `<div class="quick">${vendors.slice(0, 3).map(n => `<button type="button" data-fill="f-vendor" data-val="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}</div>
+        ${vendors.length ? `<div class="quick">${vendors.slice(0, 4).map(n => `<button type="button" data-fill="f-vendor" data-val="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}</div>
       <div class="row2">
         <div class="field"><label for="f-cost">Total cost</label><div class="prefix"><span>$</span><input id="f-cost" inputmode="decimal" maxlength="12" value="${rec?.cost != null ? Number(rec.cost).toFixed(2) : ''}"></div></div>
         <div class="field"><label for="f-invoice">Invoice or order #</label><input id="f-invoice" class="mono" maxlength="40" value="${esc(rec?.invoice)}"></div>
@@ -1084,8 +1190,8 @@ function recordDetailHTML(r) {
     <dl class="facts">
       <div><dt>Date</dt><dd>${esc(fmtDate(r.date)) || '—'}</dd></div>
       <div><dt>Odometer</dt><dd class="mono">${r.miles ? fmtNum(r.miles) + ' mi' : '—'}</dd></div>
-      <div><dt>Done by</dt><dd>${esc(r.doneBy) || '—'}</dd></div>
-      <div><dt>Parts from</dt><dd>${esc(r.vendor) || '—'}</dd></div>
+      <div><dt>Done by</dt><dd>${whoHTML(r.doneBy)}</dd></div>
+      <div><dt>Parts from</dt><dd>${whoHTML(r.vendor)}</dd></div>
       <div><dt>Cost</dt><dd class="mono">${money(r.cost) || '—'}</dd></div>
       <div><dt>Invoice #</dt><dd class="mono">${esc(r.invoice) || '—'}</dd></div>
     </dl>
@@ -1161,6 +1267,9 @@ const ACTS = {
   vtab: t => { S.vtab = t.dataset.tab; render(); },
   'copy-history': t => copyHistory(t.dataset.id),
   'toggle-shop': t => { S.openShop = S.openShop === t.dataset.key ? null : t.dataset.key; render(); },
+  'add-contact': () => openContactForm(null),
+  'edit-contact': t => { const c = S.contacts.get(t.dataset.id); if (c) openContactForm(c); },
+  'save-contact': t => openContactForm(null, { name: t.dataset.name, kind: t.dataset.kind, renameFrom: t.dataset.name }),
   'due-done': t => { const r = S.records.get(t.dataset.id); const d = r && dueInfo(r); if (!r) return; openRecordForm({ vehicleId: r.vehicleId, title: (d?.label || r.title).replace(/^next\s+/i, '').replace(/^./, c => c.toUpperCase()), kind: r.kind, clears: [r.id] }); },
   resub: () => { if (uid) subscribe(); },
   google: () => signInGoogle(),
@@ -1244,7 +1353,7 @@ async function finishEmailLink(email) {
 function signedOut() {
   while (unsubs.length) { try { unsubs.pop()(); } catch (e) { } }
   uid = null; userEmail = '';
-  S.vehicles = new Map(); S.records = new Map(); photoCache.clear();
+  S.vehicles = new Map(); S.records = new Map(); S.contacts = new Map(); photoCache.clear();
   while (sheets.length) closeSheet(sheets[sheets.length - 1]);
   Object.assign(S, { status: 'signin', view: 'garage', vehicleId: null, q: '', vq: '', subError: false, rolled: false, slow: false });
   render();
@@ -1252,10 +1361,10 @@ function signedOut() {
 function subscribe() {
   while (unsubs.length) { try { unsubs.pop()(); } catch (e) { } }
   S.subError = false;
-  let gotV = false, gotR = false;
-  const slowT = setTimeout(() => { if (!(gotV && gotR)) { S.slow = true; render(); } }, 10000);
+  let gotV = false, gotR = false, gotC = false;
+  const slowT = setTimeout(() => { if (!(gotV && gotR && gotC)) { S.slow = true; render(); } }, 10000);
   const done = () => {
-    if (gotV && gotR) { clearTimeout(slowT); S.slow = false; if (S.status === 'loading') S.status = 'ok'; }
+    if (gotV && gotR && gotC) { clearTimeout(slowT); S.slow = false; if (S.status === 'loading') S.status = 'ok'; }
     render(); refreshSheets();
   };
   const fail = e => {
@@ -1271,6 +1380,9 @@ function subscribe() {
   }, fail));
   unsubs.push(userDoc().collection('records').onSnapshot(snap => {
     S.records = new Map(snap.docs.map(d => [d.id, { ...d.data(), id: d.id }])); gotR = true; done();
+  }, fail));
+  unsubs.push(userDoc().collection('contacts').onSnapshot(snap => {
+    S.contacts = new Map(snap.docs.map(d => [d.id, { ...d.data(), id: d.id }])); gotC = true; done();
   }, fail));
 }
 async function signedIn(user) {

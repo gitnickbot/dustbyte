@@ -200,11 +200,21 @@ a{color:var(--accent)}
 /* Shops */
 .shop{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .shop+.shop{margin-top:8px}
-.shop-h{display:flex;gap:12px;align-items:center;width:100%;padding:13px 14px;background:none;border:0;text-align:left}
-.shop-h .nm{font-weight:750;display:block;overflow-wrap:anywhere}
-.shop-h .sub{display:block;color:var(--muted);font-size:13px}
-.shop-h .grow{flex:1;min-width:0}
-.shop-h .chev{transition:transform .15s;color:var(--muted)}
+.shop-h{display:flex;align-items:center;gap:6px;padding-right:12px}
+.shop-toggle{display:flex;gap:12px;align-items:center;flex:1;min-width:0;padding:13px 6px 13px 14px;background:none;border:0;text-align:left}
+.shop .nm{font-weight:750;display:block;overflow-wrap:anywhere}
+.shop .sub{display:block;color:var(--muted);font-size:13px}
+.shop .grow{flex:1;min-width:0}
+.shop .chev{transition:transform .15s;color:var(--muted)}
+.shop .call{flex:none;padding:0 12px}
+.shop-body{padding:0 14px 14px 44px;display:flex;flex-direction:column;gap:9px;font-size:14px}
+.shop-body p{margin:0}
+.addr{display:flex;gap:7px;align-items:flex-start}
+.addr .ic{color:var(--muted);margin-top:1px}
+.addr a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.cnotes{white-space:pre-wrap;overflow-wrap:anywhere}
+a.tel{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-weight:650;font-size:13.5px;text-decoration:none}
+a.tel .ic{width:15px;height:15px}
 .shop[data-open="1"] .chev{transform:rotate(90deg)}
 .shop .wo-list{border:0;border-top:1px solid var(--line);border-radius:0}
 

@@ -11,7 +11,7 @@ Live at https://gitnickbot.github.io/dustbyte/glovebox/ (once this folder is on 
 - **Receipts**: take a photo or pick one; it's saved with the record.
 - **Warranties**: length presets (90 days to lifetime) and/or a mileage limit. Anything ending within 60 days, or within 1,000 miles, is flagged.
 - **Reminders**: "next oil change by a date or odometer reading", marked done when the next one is logged.
-- **Shops**: every shop and parts store, with what they did and what was spent.
+- **Shops**: an address book of shops, mechanics and parts stores (phone with a Call button, address that opens in Maps, notes). Add them with **+ Add** before they've done any work; saved ones are offered first when logging work. Anyone typed into a record shows up too, with **Add phone & address** to save them. Renaming a contact updates the records that name them. Each entry shows what they did and what was spent.
 - **Search** across everything, and **Copy** a vehicle's history as text for a mechanic or buyer.
 - Syncs live between phone and computer. On a phone, use the browser's "Add to Home Screen".
 
@@ -47,6 +47,7 @@ Firestore layout, per person:
 - `users/<uid>/vehicles/<id>`: one document per vehicle.
 - `users/<uid>/records/<id>`: one document per repair/service/part, with small thumbnails of its photos.
 - `users/<uid>/photos/<id>`: one full receipt photo per document, compressed JPEG (kept under Firestore's 1 MB document limit).
+- `users/<uid>/contacts/<id>`: one document per shop, mechanic or parts store (name, type, phone, address, notes). Records refer to them by name.
 
 ## Credits
 
